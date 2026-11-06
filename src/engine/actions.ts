@@ -3,7 +3,7 @@
 
 import type { ActionInstance, ActionMeta, Hotkey } from '../shared/types.ts';
 import type { MediaCmd, Platform } from './platform.ts';
-import { formatHotkey, MAC_CONTROLS, type MacControlOp } from './platform.ts';
+import { commandFailure, formatHotkey, MAC_CONTROLS, type MacControlOp } from './platform.ts';
 import type { TouchVisual } from '../render/renderer.ts';
 import { validateActionSetup } from '../shared/action-setup.ts';
 
@@ -325,10 +325,8 @@ export const ACTIONS: ActionDef[] = [
         c.state.output = r.stdout.trim().split('\n')[0]?.slice(0, 40) ?? '';
         c.refresh();
       }
-      if (r.code !== 0) {
-        c.log(`command exited ${r.code}: ${r.stderr.trim().slice(0, 200)}`);
-        c.showAlert();
-      } else if (!c.settings.showOutput) c.showOk();
+      if (r.code !== 0) throw new Error(commandFailure(r));
+      if (!c.settings.showOutput) c.showOk();
     },
     async dialRotate(c, ticks) {
       const cmd = String((ticks < 0 ? c.settings.left : c.settings.right) || '').trim();
@@ -338,6 +336,7 @@ export const ACTIONS: ActionDef[] = [
         c.state.output = r.stdout.trim().split('\n')[0]?.slice(0, 24) ?? '';
         c.refresh();
       }
+      if (r.code !== 0) throw new Error(commandFailure(r));
     },
     async dialDown(c) {
       const cmd = String(c.settings.press || '').trim();
@@ -347,6 +346,7 @@ export const ACTIONS: ActionDef[] = [
         c.state.output = r.stdout.trim().split('\n')[0]?.slice(0, 24) ?? '';
         c.refresh();
       }
+      if (r.code !== 0) throw new Error(commandFailure(r));
     },
     key(c) {
       return c.settings.showOutput && c.state.output ? { value: String(c.state.output) } : {};
@@ -596,10 +596,14 @@ export const ACTIONS: ActionDef[] = [
     async keyDown(c) {
       const steps = (c.settings.steps as ActionInstance[]) ?? [];
       if (!steps.length) return c.showAlert();
-      for (const s of steps) {
-        if (s.type === 'sd.delay') await new Promise((r) => setTimeout(r, clamp(Number(s.settings.ms) || 0, 0, 60000)));
-        else await c.runInstance(s);
+      // One failing step doesn't stop the rest (a `pkill` that finds nothing shouldn't skip the next step).
+      const failures: string[] = [];
+      for (const [i, s] of steps.entries()) {
+        if (s.type === 'sd.delay') { await new Promise((r) => setTimeout(r, clamp(Number(s.settings.ms) || 0, 0, 60000))); continue; }
+        try { await c.runInstance(s); }
+        catch (e) { failures.push(`step ${i + 1} (${ACTION_MAP.get(s.type)?.meta.name ?? s.type}): ${(e as Error).message}`); }
       }
+      if (failures.length) throw new Error(failures.join('; '));
       c.showOk();
     },
   },
@@ -629,7 +633,11 @@ export const ACTIONS: ActionDef[] = [
       const cmd = String((c.state.on ? c.settings.onCommand : c.settings.offCommand) || '').trim();
       if (cmd) {
         const r = await c.platform.run(cmd);
-        if (r.code !== 0) c.showAlert();
+        if (r.code !== 0) {
+          c.state.on = !c.state.on; // the switch didn't happen
+          c.refresh();
+          throw new Error(commandFailure(r));
+        }
       }
     },
     key(c) {

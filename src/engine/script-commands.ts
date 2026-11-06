@@ -6,6 +6,7 @@ import { access, open, stat } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { encodeScriptArguments, validateScriptArguments, type ScriptArgument } from '../shared/script-arguments.ts';
+import { userEnv } from './user-env.ts';
 export type { ScriptArgument } from '../shared/script-arguments.ts';
 
 const HEADER_BYTES = 64 * 1024;
@@ -157,9 +158,12 @@ export async function prepareScriptCommand(options: ScriptCommandOptions): Promi
 
 export async function runScript(options: ScriptCommandOptions): Promise<{ code: number; stdout: string; stderr: string }> {
   const command = await buildScriptCommand(options);
+  // The user's PATH, so `#!/usr/bin/env node` and Homebrew tools resolve from the desktop app too.
+  const env = await userEnv();
   return new Promise((resolve, reject) => {
     const child = execFile(command.executable, command.args, {
       cwd: command.cwd,
+      env,
       timeout: TIMEOUT_MS,
       killSignal: 'SIGKILL',
       maxBuffer: OUTPUT_BYTES,

@@ -2,10 +2,11 @@
 // Other platforms get best-effort equivalents; with executeActions=false everything is logged only.
 
 import { execFile, spawn } from 'node:child_process';
-import { platform as osPlatform } from 'node:os';
+import { homedir, platform as osPlatform } from 'node:os';
 import type { Hotkey } from '../shared/types.ts';
 import type { StateSourceId, StateValue } from '../shared/state-rules.ts';
 import { runScript as executeScript, type ScriptCommandOptions } from './script-commands.ts';
+import { commandShell, userEnv, warmUserPath } from './user-env.ts';
 import { prepareAgentLaunch, TERMINAL_LAUNCH_SCRIPT, type AgentLaunchOptions } from './agent-launcher.ts';
 
 export type MediaCmd = 'playpause' | 'next' | 'previous' | 'mute' | 'volup' | 'voldown';
@@ -95,7 +96,7 @@ async function mustExec(cmd: string, args: string[], runner: CommandRunner = exe
     if (/-1743|Not authori[sz]ed to send Apple events/i.test(err)) {
       throw new PermissionError('automation', `macOS blocked this: allow ${hostAppName()} to control System Events (Privacy & Security → Automation).`);
     }
-    if (/1002|not allowed to send keystrokes|-25211|assistive access/i.test(err)) {
+    if (/\(-?1002\)|not allowed to send keystrokes|-25211|assistive access/i.test(err)) {
       throw new PermissionError('accessibility', `macOS blocked this: allow ${hostAppName()} under Privacy & Security → Accessibility.`);
     }
     throw new Error(err || `${cmd} failed`);
@@ -103,24 +104,58 @@ async function mustExec(cmd: string, args: string[], runner: CommandRunner = exe
   return r.stdout;
 }
 
-function runShell(command: string, timeoutMs = 30000): Promise<{ code: number; stdout: string; stderr: string }> {
+async function runShell(command: string, timeoutMs = 30000): Promise<{ code: number; stdout: string; stderr: string }> {
+  // The user's PATH (Homebrew, ~/.local/bin, version managers) in a POSIX shell, so commands behave
+  // as they do in Terminal even when the login shell is fish.
+  const env = await userEnv();
   return new Promise((resolve) => {
-    const shell = process.env.SHELL || '/bin/sh';
-    const child = spawn(shell, ['-lc', command], { stdio: ['ignore', 'pipe', 'pipe'] });
     let stdout = '';
     let stderr = '';
-    const t = setTimeout(() => child.kill('SIGTERM'), timeoutMs);
-    child.stdout.on('data', (d) => (stdout = (stdout + d).slice(-65536)));
-    child.stderr.on('data', (d) => (stderr = (stderr + d).slice(-65536)));
-    child.on('close', (code) => {
+    let settled = false;
+    let child: ReturnType<typeof spawn>;
+    const finish = (r: { code: number; stdout: string; stderr: string }) => {
+      if (settled) return;
+      settled = true;
       clearTimeout(t);
-      resolve({ code: code ?? 1, stdout, stderr });
+      clearTimeout(grace);
+      // A background job (`caffeinate &`) may still hold the pipes; stop reading, leave it running.
+      child?.stdout?.destroy();
+      child?.stderr?.destroy();
+      resolve(r);
+    };
+    let grace: ReturnType<typeof setTimeout> | undefined;
+    // Kill the process group only if the command itself is still running at the timeout.
+    const t = setTimeout(() => {
+      try { if (child.pid) process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
+      finish({ code: 124, stdout, stderr: `Timed out after ${Math.round(timeoutMs / 1000)} seconds.` });
+    }, timeoutMs);
+    try {
+      child = spawn(commandShell(), ['-lc', command], { stdio: ['ignore', 'pipe', 'pipe'], env, cwd: env.HOME, detached: true });
+    } catch (e) {
+      finish({ code: 1, stdout, stderr: (e as Error).message });
+      return;
+    }
+    child.stdout!.on('data', (d) => (stdout = (stdout + d).slice(-65536)));
+    child.stderr!.on('data', (d) => (stderr = (stderr + d).slice(-65536)));
+    child.on('exit', (code, signal) => {
+      // Give buffered output a moment to arrive, then report without waiting for background jobs.
+      grace = setTimeout(() => finish({ code: code ?? (signal ? 128 : 1), stdout, stderr }), 150);
     });
-    child.on('error', (e) => {
-      clearTimeout(t);
-      resolve({ code: 1, stdout, stderr: e.message });
-    });
+    child.on('close', (code) => finish({ code: code ?? 1, stdout, stderr }));
+    child.on('error', (e) => finish({ code: 1, stdout, stderr: e.message }));
   });
+}
+
+/** One readable line for a failed shell command. */
+export function commandFailure(r: { code: number; stderr: string; stdout: string }): string {
+  const detail = (r.stderr.trim() || r.stdout.trim()).split('\n').filter(Boolean).slice(-2).join(' ').slice(0, 200);
+  if (r.code === 127) {
+    // zsh: "zsh:1: command not found: x"; bash: "bash: line 1: x: command not found".
+    const name = /command not found: (\S+)/.exec(detail)?.[1] ?? /([^\s:]+): command not found/.exec(detail)?.[1];
+    return `Command not found${name ? `: ${name}` : ''}. Install it, or use its full path.`;
+  }
+  if (r.code === 124) return detail || 'The command timed out.';
+  return `The command exited with code ${r.code}${detail ? `: ${detail}` : ''}`;
 }
 
 // macOS virtual key codes (Carbon kVK_*), layout-independent.
@@ -246,16 +281,35 @@ export class MacPlatform implements Platform {
     await this.mustExec('open', [`x-apple.systempreferences:com.apple.preference.security?${id === 'accessibility' ? 'Privacy_Accessibility' : 'Privacy_Automation'}`]);
   }
 
-  openUrl(url: string) {
-    return this.mustExec('open', [url]).then(() => undefined);
+  async openUrl(url: string) {
+    try {
+      await this.mustExec('/usr/bin/open', [url]);
+    } catch (e) {
+      const scheme = /^([a-z][a-z0-9+.-]*):/i.exec(url)?.[1];
+      if (scheme && /-10814|no application.*(?:set|found)|kLSApplicationNotFoundErr/i.test((e as Error).message)) {
+        throw new Error(`No app on this Mac opens ${scheme}: links. Install the app this link is for.`);
+      }
+      throw e;
+    }
   }
-  openPath(path: string) {
-    const p = path.replace(/^~(?=\/|$)/, process.env.HOME ?? '~');
+  async openPath(path: string) {
+    const p = path.replace(/^~(?=\/|$)/, homedir());
     // "Safari" or "Safari.app" → open -a
-    const args = /\.app\/?$/.test(p) || (!p.includes('/') && !/^[a-z]+:/i.test(p)) ? ['-a', p] : [p];
-    return this.mustExec('open', args).then(() => undefined);
+    const app = /\.app\/?$/.test(p) || (!p.includes('/') && !/^[a-z]+:/i.test(p));
+    try {
+      await this.mustExec('/usr/bin/open', app ? ['-a', p] : [p]);
+    } catch (e) {
+      if (e instanceof PermissionError) throw e;
+      const name = p.replace(/\/$/, '').replace(/^.*\//, '').replace(/\.app$/, '');
+      if (app && /Unable to find application|can't be found|LSOpen.*-10814|-10814/i.test((e as Error).message)) {
+        throw new Error(`${name} isn't installed on this Mac. Install it, or choose another app.`);
+      }
+      if (!app && /does not exist/i.test((e as Error).message)) throw new Error(`${p} doesn't exist. Choose an existing file or folder.`);
+      throw e;
+    }
   }
   async launchAgent(options: AgentLaunchOptions): Promise<void> {
+    await warmUserPath(); // find CLIs installed in Homebrew, ~/.local/bin or a version manager
     const launch = prepareAgentLaunch(options);
     try {
       await this.mustExec('osascript', ['-e', TERMINAL_LAUNCH_SCRIPT, launch.terminalCommand]);
@@ -355,7 +409,14 @@ $.CGEventPost(0, e);`;
   runScript(options: ScriptCommandOptions) { return executeScript(options); }
   async runShortcut(name: string) {
     if (!name.trim() || name.trim().startsWith('-') || name.includes('\0')) throw new Error('Choose a valid shortcut name');
-    await this.mustExec('/usr/bin/shortcuts', ['run', name.trim()], undefined, 300_000);
+    try {
+      await this.mustExec('/usr/bin/shortcuts', ['run', name.trim()], undefined, 300_000);
+    } catch (e) {
+      if (/couldn.t find shortcut|no shortcut named/i.test((e as Error).message)) {
+        throw new Error(`There's no shortcut named “${name.trim()}”. Check the name in the Shortcuts app.`);
+      }
+      throw e;
+    }
   }
 
   private async postSystemKey(key: number, what: string) {

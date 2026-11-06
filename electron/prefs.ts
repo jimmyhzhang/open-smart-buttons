@@ -13,6 +13,7 @@ const DEFAULTS: Prefs = {
   checkForUpdates: false,
   closeNoticeShown: false,
   model: DEFAULT_MODEL,
+  aiProvider: 'auto',
   theme: 'system',
 };
 
@@ -43,6 +44,7 @@ function read(file: string): Partial<Prefs> {
     }
     if (Number.isInteger(raw.port) && (raw.port as number) > 1024 && (raw.port as number) < 65536) out.port = raw.port as number;
     if (typeof raw.model === 'string' && /^[A-Za-z0-9._:@-]{1,100}$/.test(raw.model)) out.model = raw.model;
+    if (['auto', 'claude', 'codex', 'api'].includes(raw.aiProvider as string)) out.aiProvider = raw.aiProvider as Prefs['aiProvider'];
     if (raw.theme === 'light' || raw.theme === 'dark' || raw.theme === 'system') out.theme = raw.theme;
     const b = raw.windowBounds as Record<string, unknown> | undefined;
     if (b && ['x', 'y', 'width', 'height'].every((k) => Number.isFinite(b[k]))) out.windowBounds = b as Prefs['windowBounds'];

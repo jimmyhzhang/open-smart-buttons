@@ -48,7 +48,7 @@ test('real HTTP/WebSocket → bounded inference request → validated button; mo
  let authorization = '';
  const start = async () => {
    child = spawn(process.execPath, ['--import', './test/e2e/mock-inference.mjs', 'src/server/main.ts', '--no-hid', '--port', String(port), '--data', dir], {
-     env: { ...process.env, ANTHROPIC_API_KEY: 'isolated-test-key', STREAMDECK_CLAUDE_MODEL: 'fixture-model', TEST_INFERENCE_PORT: String(inferencePort) },
+     env: { ...process.env, STREAMDECK_AI: 'api', STREAMDECK_LOCAL_ONLY: '1', ANTHROPIC_API_KEY: 'isolated-test-key', STREAMDECK_CLAUDE_MODEL: 'fixture-model', TEST_INFERENCE_PORT: String(inferencePort) },
      stdio: 'ignore',
    });
    const tokenFile = join(dir, `session-${port}.token`);
@@ -71,20 +71,19 @@ test('real HTTP/WebSocket → bounded inference request → validated button; mo
  const slot=async()=>{const s=await state();return s.config.profiles.find((p:any)=>p.id===target.profileId).pages[target.pageId].keys[4];};
  const original=await slot();
  await t.test('provider preference validates and persists',async()=>{await assert.rejects(rpc('settings.update',{patch:{buttonAgent:{enabled:true,provider:'bad'}}}),/Choose/);await rpc('settings.update',{patch:{buttonAgent:{enabled:true,provider:'claude'}}});});
- await t.test('create and modify publish complete settings and icons',async()=>{let j=await rpc('buttonAgent.start',{target,instruction:'Create counter',provider:'claude'});assert.equal((await finish(j.id)).status,'ready');assert.equal((await slot()).appearance.icon.name,'hash');await rpc('buttonAgent.test',{id:j.id,deviceId:dev.id});j=await rpc('buttonAgent.start',{target,instruction:'MODIFY_FIXTURE',provider:'claude'});assert.equal((await finish(j.id)).status,'ready');assert.equal((await slot()).appearance.title,'Modified');await rpc('buttonAgent.undo',{id:j.id});assert.equal((await slot()).appearance.title,'Generated');});
- await t.test('cancel rejects overlapping jobs and prevents late assignment',async()=>{const before=await slot();const j=await rpc('buttonAgent.start',{target,instruction:'SLOW_FIXTURE',provider:'claude'});await assert.rejects(rpc('buttonAgent.start',{target,instruction:'Other',provider:'claude'}),/current creation/);await rpc('buttonAgent.cancel',{id:j.id});assert.equal((await finish(j.id)).status,'cancelled');await delay(100);assert.deepEqual(await slot(),before);});
+ await t.test('create and modify publish complete settings and icons',async()=>{let j=await rpc('buttonAgent.start',{target,instruction:'Create counter',provider:'api'});assert.equal((await finish(j.id)).status,'ready');assert.equal((await slot()).appearance.icon.name,'hash');await rpc('buttonAgent.test',{id:j.id,deviceId:dev.id});j=await rpc('buttonAgent.start',{target,instruction:'MODIFY_FIXTURE',provider:'api'});assert.equal((await finish(j.id)).status,'ready');assert.equal((await slot()).appearance.title,'Modified');await rpc('buttonAgent.undo',{id:j.id});assert.equal((await slot()).appearance.title,'Generated');});
+ await t.test('cancel rejects overlapping jobs and prevents late assignment',async()=>{const before=await slot();const j=await rpc('buttonAgent.start',{target,instruction:'SLOW_FIXTURE',provider:'api'});await assert.rejects(rpc('buttonAgent.start',{target,instruction:'Other',provider:'api'}),/current creation/);await rpc('buttonAgent.cancel',{id:j.id});assert.equal((await finish(j.id)).status,'cancelled');await delay(100);assert.deepEqual(await slot(),before);});
  await t.test('restart retains provider, job outcome and saved button',async()=>{await stop();await start();assert.equal((await state()).config.settings.buttonAgent.provider,'claude');assert.equal((await rpc('buttonAgent.list')).at(-1).status,'cancelled');assert.equal((await slot()).appearance.title,'Generated');assert.notDeepEqual(await slot(),original);});
- await t.test('USB is isolated; strict design blocks scripts, legacy CLI calls and redirects', async () => {
+ await t.test('USB is isolated; strict mode blocks scripts and redirects', async () => {
    await rpc('devices.scan');
    assert.ok((await state()).discovered.every((d: any) => d.kind === 'sim'));
    await assert.rejects(rpc('devices.connect', { path: 'fixture-device' }), /USB is disabled/);
-   await assert.rejects(rpc('buttonAgent.start', { target, instruction: 'Legacy agent', provider: 'codex' }), /Configure Claude API/);
    const before = await slot();
    for (const [instruction, message] of [
      ['SCRIPT_FAILURE_FIXTURE', /local-only/],
      ['REDIRECT_FIXTURE', /HTTP 302/],
    ] as const) {
-     const j = await rpc('buttonAgent.start', { target, instruction, provider: 'claude' });
+     const j = await rpc('buttonAgent.start', { target, instruction, provider: 'api' });
      const completed = await finish(j.id);
      assert.equal(completed.status, 'failed');
      assert.match(completed.error, message);

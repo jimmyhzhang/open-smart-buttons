@@ -9,6 +9,7 @@ import { act, client, dismissToast, toast, useAppState, useToasts } from '../api
 import { native, updateNativeState, useMenuCommand, useNativeState } from '../native.ts';
 import { applyTheme, useTheme, type Theme } from '../theme.ts';
 import { Icon } from '../components/Icon.tsx';
+import type { AiEngine, AiPreference, AiStatus, ButtonAgentProvider } from '../../../src/shared/button-agent.ts';
 import './settings.css';
 
 const TABS = [
@@ -132,7 +133,7 @@ export function SettingsView() {
         {tab === 'general' && <General state={state} ns={ns} />}
         {tab === 'devices' && <Devices state={state} ns={ns} />}
         {tab === 'permissions' && <Permissions state={state} />}
-        {tab === 'ai' && <AI ns={ns} />}
+        {tab === 'ai' && <AI ns={ns} connected={!!state} />}
         {tab === 'updates' && <Updates ns={ns} />}
         {tab === 'about' && <About ns={ns} />}
       </main>
@@ -609,11 +610,156 @@ function PermIcon({ ok }: { ok: boolean | null }) {
 
 // ---- AI ----------------------------------------------------------------------------------------
 
-function AI({ ns }: { ns: NativeState | null }) {
+const ENGINE_ORDER: ButtonAgentProvider[] = ['claude', 'codex', 'api'];
+const ENGINE_ICONS: Record<ButtonAgentProvider, string> = { claude: 'sparkles', codex: 'square-terminal', api: 'key-round' };
+
+/** What to do next for an engine that isn't ready. */
+function engineHint(e: AiEngine): ReactNode {
+  if (e.status === 'ready') return e.detail;
+  if (e.id === 'api') return 'Add a key below.';
+  if (e.status === 'signed-out') return <>Installed. To sign in, run <code>{e.id === 'codex' ? 'codex login' : 'claude'}</code> in Terminal.</>;
+  return e.id === 'claude'
+    ? <>Not installed. Get it at claude.com/claude-code, then sign in.</>
+    : <>Not installed. Install it with <code>brew install codex</code>, then run <code>codex login</code>.</>;
+}
+
+function AI({ ns, connected }: { ns: NativeState | null; connected: boolean }) {
+  const uid = useId();
+  const focused = useWindowFocus();
+  const testRun = useRef(0); // a result from before an engine or key change is ignored
+  const [status, setStatus] = useState<AiStatus | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [statusError, setStatusError] = useState(false);
+  const [test, setTest] = useState<{ ok: boolean; message: string } | 'running' | null>(null);
+  const pref = ns?.ai.provider ?? 'auto';
+  const hasKey = !!ns?.ai.hasKey;
+
+  const load = useCallback(async (refresh: boolean) => {
+    if (!client.connected) return;
+    setChecking(true);
+    try {
+      setStatus(await client.rpc<AiStatus>('buttonAgent.availability', { refresh }));
+      setStatusError(false);
+    } catch {
+      setStatusError(true);
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  // Check when the service connects and whenever the window comes back to the front: the user may
+  // have just signed in from Terminal.
+  useEffect(() => { if (focused && connected) void load(true); }, [focused, connected, load, pref, hasKey]);
+
+  const engines = status?.engines ?? [];
+  const byId = (id: ButtonAgentProvider) => engines.find((e) => e.id === id);
+  const active = status?.active ? byId(status.active) : undefined;
+
+  const choose = async (next: AiPreference) => {
+    if (next === pref) return;
+    testRun.current++;
+    setTest(null);
+    if (await setPref('aiProvider', next)) void load(false);
+  };
+
+  const runTest = async () => {
+    const run = ++testRun.current;
+    setTest('running');
+    const r = await command<{ ok: boolean; message: string }>('ai.test');
+    if (run === testRun.current) setTest(r ?? null);
+  };
+
+  const options: { id: AiPreference; label: string; icon: ReactNode; help: ReactNode }[] = [
+    {
+      id: 'auto',
+      label: 'Automatic',
+      icon: <span className="sv-perm-icon unk" aria-hidden><Icon name="wand-sparkles" size={13} /></span>,
+      help: !status ? 'Uses Claude Code, then Codex, then your API key.'
+        : active ? <>Uses Claude Code, then Codex, then your API key. Now using <strong>{active.name}</strong>.</>
+        : 'Uses Claude Code, then Codex, then your API key. None is ready yet.',
+    },
+    ...ENGINE_ORDER.map((id) => {
+      const e = byId(id);
+      return {
+        id,
+        label: e?.name ?? (id === 'claude' ? 'Claude Code' : id === 'codex' ? 'Codex' : 'Anthropic API key'),
+        icon: <span className={`sv-perm-icon ${!e ? 'unk' : e.status === 'ready' ? 'ok' : 'unk'}`} aria-hidden><Icon name={ENGINE_ICONS[id]} size={13} /></span>,
+        help: e ? engineHint(e) : checking ? 'Checking…' : '',
+      };
+    }),
+  ];
+
+  const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    const i = options.findIndex((o) => o.id === pref);
+    const step = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const next = options[(i + step + options.length) % options.length]!;
+    void choose(next.id);
+    (e.currentTarget.querySelector(`[data-engine="${next.id}"]`) as HTMLElement | null)?.focus();
+  };
+
+  return (
+    <Pane title="AI" intro="Describe a key in your own words and StreamDeckPlus sets it up. If you're signed in to Claude Code or Codex, there's nothing else to set up.">
+      <Group
+        title="Design with"
+        footer={<>Your request and the selected key go to {active?.vendor ?? 'the engine you choose'} only when you design a key. Claude Code and Codex run with no tools and use your own sign-in.</>}
+      >
+        <div role="radiogroup" aria-label="Design with" onKeyDown={onKey}>
+          {options.map((o) => (
+            <button
+              key={o.id}
+              type="button"
+              role="radio"
+              data-engine={o.id}
+              aria-checked={pref === o.id}
+              tabIndex={pref === o.id ? 0 : -1}
+              className={`sv-row sv-choice${pref === o.id ? ' on' : ''}`}
+              aria-labelledby={`${uid}-${o.id}-l`}
+              aria-describedby={`${uid}-${o.id}-h`}
+              onClick={() => void choose(o.id)}
+            >
+              <span className="sv-radio" aria-hidden />
+              <span className="sv-row-icon">{o.icon}</span>
+              <span className="sv-row-text">
+                <span className="sv-label"><span id={`${uid}-${o.id}-l`}>{o.label}</span>{o.id === 'auto' ? <span className="sv-badge">Recommended</span> : null}</span>
+                <span id={`${uid}-${o.id}-h`} className="sv-help">{o.help}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      </Group>
+      <div className="sv-actions">
+        {statusError ? <span className="sv-help sv-help-bad" role="status"><Icon name="circle-x" size={13} /> Couldn't check the engines.</span> : null}
+        <button className="sv-btn" disabled={checking} onClick={() => void load(true)}>{checking ? 'Checking…' : 'Check Again'}</button>
+      </div>
+
+      <Group>
+        <Row
+          label="Test"
+          help={
+            test === 'running' ? `Sending a short request${active ? ` to ${active.name}` : ''}…`
+              : test ? <span className={test.ok ? 'sv-help-ok' : 'sv-help-bad'} role="status">
+                  <Icon name={test.ok ? 'circle-check' : 'circle-x'} size={13} /> {test.message}
+                </span>
+              : active ? `Checks that ${active.name} can design a key.` : 'Sign in to an engine above to test it.'
+          }
+        >
+          <button className="sv-btn" disabled={!active || test === 'running'} onClick={runTest}>
+            {test === 'running' ? 'Testing…' : 'Test'}
+          </button>
+        </Row>
+      </Group>
+
+      <ApiKey ns={ns} onChange={() => { testRun.current++; setTest(null); void load(false); }} />
+    </Pane>
+  );
+}
+
+function ApiKey({ ns, onChange }: { ns: NativeState | null; onChange(): void }) {
   const [replacing, setReplacing] = useState(false);
   const [key, setKey] = useState('');
   const [saving, setSaving] = useState(false);
-  const [test, setTest] = useState<{ ok: boolean; message: string } | 'running' | null>(null);
   const keyInput = useRef<HTMLInputElement>(null);
   const hasKey = !!ns?.ai.hasKey;
   const secure = ns?.ai.secureStorage ?? true;
@@ -631,7 +777,7 @@ function AI({ ns }: { ns: NativeState | null }) {
     updateNativeState(next);
     setKey('');
     setReplacing(false);
-    setTest(null);
+    onChange();
     toast('Key saved to your Keychain.');
   };
 
@@ -641,17 +787,11 @@ function AI({ ns }: { ns: NativeState | null }) {
     if (!next) return;
     updateNativeState(next);
     setReplacing(false);
-    setTest(null);
-  };
-
-  const runTest = async () => {
-    setTest('running');
-    const r = await command<{ ok: boolean; message: string }>('ai.test');
-    setTest(r ?? null);
+    onChange();
   };
 
   return (
-    <Pane title="AI" intro="Describe a key in your own words and StreamDeckPlus sets it up. This uses your Anthropic API key.">
+    <>
       {!secure ? (
         <div className="sv-callout warn" role="status">
           <Icon name="circle-alert" size={18} />
@@ -662,7 +802,7 @@ function AI({ ns }: { ns: NativeState | null }) {
         </div>
       ) : null}
 
-      <Group footer="Stored in your Mac's Keychain. Sent only to api.anthropic.com when you ask.">
+      <Group title="Anthropic API key" footer="Optional. Used only when you choose it above, or when neither CLI is signed in. Stored in your Mac's Keychain and sent only to api.anthropic.com.">
         {editing ? (
           <Row label="API key" help={hasKey ? 'The new key replaces the one in your Keychain.' : 'Create one at console.anthropic.com.'} stack>
             {(a11y) => (
@@ -703,22 +843,8 @@ function AI({ ns }: { ns: NativeState | null }) {
           </Row>
         )}
         <ModelRow model={ns?.ai.model} />
-        <Row
-          label="Test connection"
-          help={
-            test === 'running' ? 'Sending a short test message…'
-              : test ? <span className={test.ok ? 'sv-help-ok' : 'sv-help-bad'} role="status">
-                  <Icon name={test.ok ? 'circle-check' : 'circle-x'} size={13} /> {test.message}
-                </span>
-              : hasKey ? 'Checks that your key and model work.' : 'Add a key to test it.'
-          }
-        >
-          <button className="sv-btn" disabled={!hasKey || test === 'running'} onClick={runTest}>
-            {test === 'running' ? 'Testing…' : 'Test'}
-          </button>
-        </Row>
       </Group>
-    </Pane>
+    </>
   );
 }
 
@@ -737,7 +863,7 @@ function ModelRow({ model }: { model: string | undefined }) {
       label="Model"
       help={model && model !== DEFAULT_MODEL
         ? <>Default is {DEFAULT_MODEL}. <button className="sv-link" onClick={() => { setDraft(null); void setPref('model', DEFAULT_MODEL); }}>Use Default</button></>
-        : 'The default works well for setting up keys.'}
+        : 'Used with the API key. Claude Code and Codex use their own default model.'}
     >
       {(a11y) => (
         <input

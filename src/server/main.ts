@@ -5,11 +5,14 @@ import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
 import { defaultDataDir } from '../engine/store.ts';
 import { configureInference } from '../engine/inference.ts';
+import { setAiPreference } from '../engine/ai-engines.ts';
 import { HOST, ServiceStartError, startService } from './service.ts';
 
 // Hand the credential to the inference adapter, then keep it out of child process environments.
 configureInference({ apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.STREAMDECK_CLAUDE_MODEL });
 delete process.env.ANTHROPIC_API_KEY;
+// AI engine: automatic (Claude Code, then Codex, then the API key) unless STREAMDECK_AI names one.
+setAiPreference(process.env.STREAMDECK_AI);
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(`--${n}`);

@@ -1,4 +1,25 @@
-export type ButtonAgentProvider = 'codex' | 'claude';
+/** claude = Claude Code CLI, codex = Codex CLI, api = Anthropic API key. */
+export type ButtonAgentProvider = 'claude' | 'codex' | 'api';
+/** Automatic uses the first ready engine in AI_ENGINE_ORDER. */
+export type AiPreference = 'auto' | ButtonAgentProvider;
+export const AI_ENGINE_ORDER = ['claude', 'codex', 'api'] as const satisfies readonly ButtonAgentProvider[];
+export const aiEngineName: Record<ButtonAgentProvider, string> = { claude: 'Claude Code', codex: 'Codex', api: 'Anthropic API key' };
+export interface AiEngine {
+  id: ButtonAgentProvider;
+  name: string;
+  /** Who receives the request. */
+  vendor: string;
+  status: 'ready' | 'signed-out' | 'missing' | 'not-configured';
+  detail: string;
+  executable: string | null;
+}
+export interface AiStatus {
+  preference: AiPreference;
+  engines: AiEngine[];
+  active: ButtonAgentProvider | null;
+  /** Why no engine is ready, in words a user can act on. */
+  message?: string;
+}
 export interface ButtonTarget { profileId: string; pageId: string; kind: 'key' | 'dial'; index: number }
 export type ButtonJobStatus = 'creating' | 'validating' | 'repairing' | 'ready' | 'failed' | 'cancelled' | 'interrupted' | 'undone' | 'needs-input';
 export interface ButtonRun { status: 'running' | 'completed' | 'failed' | 'blocked'; at: number; message: string; output?: string }

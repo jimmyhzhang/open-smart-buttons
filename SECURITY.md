@@ -10,6 +10,6 @@ You should get a reply within a week. Fixes ship in a new release; the advisory 
 
 ## Scope
 
-In scope: the local HTTP and WebSocket service (`src/server/`), its authentication and origin checks, the local action policy, the Mac app's main process, preload and window lockdown (`electron/`), update verification, and the handling of the Claude API key.
+In scope: the local HTTP and WebSocket service (`src/server/`), its authentication and origin checks, the optional local-only action mode, the Mac app's main process, preload and window lockdown (`electron/`), update verification, how AI design invokes Claude Code and Codex, and the handling of the Anthropic API key.
 
 The threat model and the protections in place are described in [docs/DESKTOP.md](docs/DESKTOP.md) (Mac app) and in the README's "Network and data" section.

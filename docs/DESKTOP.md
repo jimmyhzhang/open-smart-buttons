@@ -20,7 +20,8 @@ StreamDeckPlus.app
 ## Service supervision
 
 - The port is chosen once, saved in the app's preferences, and reused on every launch, so the editor's origin and its local storage (theme, layout, recent actions) never change. Both credentials are generated once per launch and reused across restarts.
-- The service runs with an explicit environment (`HOME`, `PATH`, `LANG`). It never sees `ANTHROPIC_API_KEY` or terminal variables. The API key reaches it only as a message.
+- The service runs with an explicit environment (`HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `PATH`, `LANG`). It never sees `ANTHROPIC_API_KEY` or terminal variables. The API key reaches it only as a message.
+- Commands, scripts and the Claude Code / Codex CLIs get your login shell's `PATH`, read once with a 5 s limit (`src/engine/user-env.ts`). App credentials and `NODE_OPTIONS` are never passed to them.
 - A crash restarts the service after 0.5 s, 1 s and 2 s. A third crash within a minute shows "StreamDeckPlus stopped unexpectedly." with Restart and Show Log.
 - Startup errors are typed (`ServiceStartError`): an unreadable configuration offers Repair (writes a repaired copy and keeps the original folder) or Start Fresh (renames the old folder, never deletes it); a data folder held by the Terminal version asks you to quit it there.
 - Quit, logout and Restart to Update stop the service first: it flushes the store, releases the deck and removes its lock. The app kills it after 3 s if it does not finish.
@@ -38,7 +39,7 @@ StreamDeckPlus.app
 - Profiles and images: `~/.streamdeckplus` (same as the Terminal version).
 - App preferences and the encrypted API key: `~/Library/Application Support/StreamDeckPlus`.
 - Logs: `~/Library/Logs/StreamDeckPlus/StreamDeckPlus.log` (Help ▸ Show Logs). Credentials and API keys are redacted.
-- Outbound connections: `api.anthropic.com` when you submit an AI design, and the update host only when you click Check for Updates or turn on automatic checks.
+- Outbound connections: an AI design goes through Claude Code or Codex (your sign-in) or `api.anthropic.com` (your key) when you submit it. The update host is contacted only when you click Check for Updates or turn on automatic checks. Keys you set up can reach the network when you press them (websites, commands).
 
 ## Development
 

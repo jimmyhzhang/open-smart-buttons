@@ -16,11 +16,12 @@ import { CATALOG } from '../engine/actions.ts';
 import { ButtonAgent } from '../engine/button-agent.ts';
 import { createRpc, type RpcHandler } from './rpc.ts';
 import { localSession, type LocalSession } from './session.ts';
-import { inferenceAvailable, runInference } from '../engine/inference.ts';
+import { aiStatus, resolveEngine, runAi } from '../engine/ai-engines.ts';
 import { hostAppName, onKeepAwakeChange, setHostAppName, type PermissionCheck } from '../engine/platform.ts';
 import { hexPreview, summarizeReport } from '../protocol/reports.ts';
 import type { AppState, HidLogEntry } from '../shared/types.ts';
 import type { StartErrorKind } from '../shared/native.ts';
+import { warmUserPath } from '../engine/user-env.ts';
 
 export const HOST = '127.0.0.1';
 
@@ -39,6 +40,11 @@ export interface ServiceOptions {
   appName?: string;
   /** Also accept the Vite dev-server origin. Never set in packaged builds. */
   dev?: boolean;
+  /**
+   * Strict mode: only built-in deck, volume and Mac controls may run. Off by default so every
+   * action in the library works; STREAMDECK_LOCAL_ONLY=1 turns it on from Terminal.
+   */
+  localOnly?: boolean;
 }
 
 export type ServiceStartErrorKind = StartErrorKind;
@@ -124,6 +130,8 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
     throw new ServiceStartError('start-failed', 'Choose a port from 0 to 65535.');
   }
   if (opts.appName) setHostAppName(opts.appName);
+  const localOnly = opts.localOnly ?? process.env.STREAMDECK_LOCAL_ONLY === '1';
+  void warmUserPath(); // read the login-shell PATH early, so the first command or AI design doesn't wait
   const dataDir = resolve(opts.dataDir);
   mkdirSync(dataDir, { mode: 0o700, recursive: true });
   const lockFile = join(dataDir, 'server.lock');
@@ -132,14 +140,14 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
 
   let store: Store;
   try {
-    store = new Store(dataDir, true);
+    store = new Store(dataDir, localOnly);
   } catch (error) {
     releaseLock();
     throw new ServiceStartError('config-invalid', (error as Error).message, { cause: error });
   }
 
   const manager = new DeviceManager();
-  const engine = new Engine(store, manager, true, !!opts.sim);
+  const engine = new Engine(store, manager, localOnly, !!opts.sim, true);
   let session: LocalSession | null = null;
   let boundPort = 0;
   let permissions: PermissionCheck[] = [];
@@ -153,15 +161,16 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
     return permissions;
   }
   const engineRpc = createRpc(engine);
-  const buttonAgent = new ButtonAgent(engine, runInference);
+  const buttonAgent = new ButtonAgent(engine, runAi);
   const rpc: Record<string, RpcHandler> = {
     ...engineRpc,
     'buttonAgent.list': () => buttonAgent.list(),
     'buttonAgent.clearHistory': () => buttonAgent.clearHistory(),
-    'buttonAgent.availability': () => ({ agents: [{ tool: 'claude', installed: inferenceAvailable() }] }),
-    'buttonAgent.start': ({ target, instruction, provider, expectedActionId }) => {
-      if (provider !== 'claude' || !inferenceAvailable()) throw new Error('Configure Claude API before designing a button.');
-      return buttonAgent.start(target, instruction, provider, expectedActionId);
+    // Which AI designs buttons, and whether each engine is installed and signed in.
+    'buttonAgent.availability': ({ refresh } = {}) => aiStatus(refresh === true),
+    'buttonAgent.start': async ({ target, instruction, provider, expectedActionId }) => {
+      const engineId = await resolveEngine(provider);
+      return buttonAgent.start(target, instruction, engineId, expectedActionId);
     },
     'buttonAgent.cancel': ({ id }) => buttonAgent.cancel(id),
     'buttonAgent.test': ({ id, deviceId }) => buttonAgent.test(id, deviceId),

@@ -48,7 +48,10 @@ export interface EngineEvents {
 export class Engine extends EventEmitter<EngineEvents> {
   readonly store: Store;
   readonly manager: DeviceManager;
+  /** Opt-in strict mode: only built-in deck, volume and Mac controls run. Off by default. */
   readonly localOnly: boolean;
+  /** Simulated decks never act on the Mac: presses there run in dry run with their own state. */
+  readonly isolateSimulators: boolean;
   private readonly forceDryRun: boolean;
   platform: Platform;
   private readonly simulatorPlatform = createPlatform(false, (m) => this.log('info', `[dry-run] ${m}`));
@@ -60,11 +63,12 @@ export class Engine extends EventEmitter<EngineEvents> {
   readonly states = new StateHub(() => this.platform);
   private readonly simulatorStates = new StateHub(() => this.simulatorPlatform);
 
-  constructor(store: Store, manager: DeviceManager, localOnly = false, forceDryRun = false) {
+  constructor(store: Store, manager: DeviceManager, localOnly = false, forceDryRun = false, isolateSimulators = localOnly) {
     super();
     this.store = store;
     this.manager = manager;
     this.localOnly = localOnly;
+    this.isolateSimulators = isolateSimulators;
     this.forceDryRun = forceDryRun;
     this.platform = this.makePlatform(store.config.settings.executeActions);
     manager.on('attach', (d) => this.attach(d));
@@ -89,11 +93,11 @@ export class Engine extends EventEmitter<EngineEvents> {
   }
 
   platformFor(dev: StreamDeckDevice): Platform {
-    return this.localOnly && dev.kind === 'sim' ? this.simulatorPlatform : this.platform;
+    return this.isolateSimulators && dev.kind === 'sim' ? this.simulatorPlatform : this.platform;
   }
 
   stateHubFor(dev: StreamDeckDevice): StateHub {
-    return this.localOnly && dev.kind === 'sim' ? this.simulatorStates : this.states;
+    return this.isolateSimulators && dev.kind === 'sim' ? this.simulatorStates : this.states;
   }
 
   assertLocal(action: ActionInstance, platform: Platform): void {
@@ -127,7 +131,7 @@ export class Engine extends EventEmitter<EngineEvents> {
   }
 
   stateFor(id: string, dev?: StreamDeckDevice): Record<string, any> {
-    const runtime = this.localOnly && dev?.kind === 'sim' ? this.simulatorRuntime : this.runtime;
+    const runtime = this.isolateSimulators && dev?.kind === 'sim' ? this.simulatorRuntime : this.runtime;
     let s = runtime.get(id);
     if (!s) {
       s = {};
@@ -226,6 +230,7 @@ export class Session {
   private keyHash: string[] = [];
   private zoneHash: string[] = [];
   private pressedKeys = new Set<number>();
+  private lastFailure: { id: string; msg: string; at: number } | null = null;
   private pressedDials = new Set<number>();
   private keyActions = new Map<number, ActionInstance>();
   private dialActions = new Map<number, ActionInstance>();
@@ -534,7 +539,11 @@ export class Session {
     if (this.disposed || !this.engine.hasSavedAction(inst.id)) return;
     const msg = `${name}: ${(e as Error).message}`;
     if (e instanceof PermissionError) this.engine.emit('permission', e.permission, msg);
-    this.engine.log('error', msg);
+    // The same failure from one button within a second (press and release, a bounce) is logged once.
+    const now = Date.now();
+    const repeat = this.lastFailure?.id === inst.id && this.lastFailure.msg === msg && now - this.lastFailure.at < 1000;
+    this.lastFailure = { id: inst.id, msg, at: now };
+    if (!repeat) this.engine.log('error', msg);
     const current = slot.kind === 'key' ? this.page()?.keys[slot.index] : this.page()?.dials[slot.index];
     if (current?.id === inst.id) this.flash(slot, 'alert');
   }
@@ -548,10 +557,12 @@ export class Session {
     const id = `k${k}`;
     if (down) {
       this.pressedKeys.add(k);
-      if (inst) this.keyActions.set(k, inst);
-      else this.keyActions.delete(k);
       this.downAt.set(id, Date.now());
-      if (inst) {
+      // A key that isn't set up reports that once; its release and long press do nothing.
+      const ready = !!inst && this.ready(slot, inst);
+      if (inst && ready) this.keyActions.set(k, inst);
+      else this.keyActions.delete(k);
+      if (inst && ready) {
         const def = ACTION_MAP.get(inst.type);
         if (def?.longPress) {
           this.longTimers.set(id, setTimeout(() => {
@@ -559,7 +570,7 @@ export class Session {
             this.run(slot, inst, (d, c) => d.longPress?.(c));
           }, LONG_PRESS_MS));
         }
-        if (this.ready(slot, inst)) this.run(slot, inst, (d, c) => d.keyDown?.(c), true);
+        this.run(slot, inst, (d, c) => d.keyDown?.(c), true);
       }
     } else {
       const pressed = this.keyActions.get(k);

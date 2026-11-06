@@ -221,6 +221,16 @@ html.view-settings body { background: var(--bg); overflow: hidden; }
 .sv-status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; opacity: 0.7; }
 .sv-status.ok { color: var(--sv-ok); }
 
+/* Radio rows (Settings ▸ AI ▸ Design with) */
+.sv-choice { width: 100%; text-align: left; color: var(--ink); font: inherit; background: none; border: 0; cursor: default; }
+.sv-choice:focus-visible { outline: 2px solid var(--signal); outline-offset: -2px; border-radius: var(--radius-m); }
+.sv-choice .sv-row-text { gap: 2px; }
+.sv-choice code { font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, monospace); font-size: 11px; padding: 0 3px; border-radius: 4px; background: color-mix(in srgb, var(--ink) 8%, transparent); user-select: text; -webkit-user-select: text; }
+.sv-radio { flex: none; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 30%, transparent); background: var(--sv-group); display: grid; place-items: center; }
+.sv-choice.on .sv-radio { background: var(--signal); box-shadow: none; }
+.sv-choice.on .sv-radio::after { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #fff; }
+.sv-badge { margin-left: 6px; padding: 1px 6px; border-radius: 999px; font-size: 10.5px; font-weight: 500; color: var(--signal); background: color-mix(in srgb, var(--signal) 14%, transparent); vertical-align: 1px; }
+
 .sv-perm-icon { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; color: #fff; }
 .sv-perm-icon.ok { background: var(--sv-ok); }
 .sv-perm-icon.no { background: var(--danger); }

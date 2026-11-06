@@ -6,7 +6,8 @@ import { ACTION_MAP, CATALOG, newInstance } from './actions.ts';
 import { validateActionSetup } from '../shared/action-setup.ts';
 import { agentWorkingDirectory } from './agent-launcher.ts';
 import { buildScriptCommand } from './script-commands.ts';
-import { boundedProcess, runButtonAgent, type ButtonRunner } from './button-agent-runner.ts';
+import { boundedProcess, type ButtonRunner } from './button-agent-runner.ts';
+import { runAi } from './ai-engines.ts';
 import { activeButtonJob, type ButtonJob, type ButtonProposal, type ButtonTarget, type ButtonAgentProvider } from '../shared/button-agent.ts';
 import type { ActionInstance } from '../shared/types.ts';
 import { STATE_OPS, STATE_SOURCES, validateStateRules, type StateRule } from '../shared/state-rules.ts';
@@ -25,7 +26,7 @@ function isSavedJob(value: unknown): value is SavedJob {
   const target = job.target;
   return typeof job.id === 'string' && typeof job.instruction === 'string' &&
     typeof job.status === 'string' && jobStatuses.has(job.status) &&
-    (job.provider === 'claude' || job.provider === 'codex') &&
+    (job.provider === 'claude' || job.provider === 'codex' || job.provider === 'api') &&
     typeof job.startedAt === 'number' && typeof job.updatedAt === 'number' &&
     !!target && typeof target.profileId === 'string' && typeof target.pageId === 'string' &&
     (target.kind === 'key' || target.kind === 'dial') && Number.isInteger(target.index) && target.index >= 0 &&
@@ -40,7 +41,7 @@ export class ButtonAgent {
   private engine: Engine;
   private runner: ButtonRunner;
   private journalBlocked = false;
-  constructor(engine: Engine, runner: ButtonRunner = runButtonAgent) {
+  constructor(engine: Engine, runner: ButtonRunner = runAi) {
     this.engine = engine; this.runner = runner; this.dir = join(engine.store.dir, 'button-agent');
     const path = join(this.dir, 'jobs.json');
     try {
@@ -116,7 +117,7 @@ export class ButtonAgent {
   start(target: ButtonTarget, instruction: string, provider: ButtonAgentProvider, expectedActionId?: string | null): ButtonJob {
     if (this.running.size) throw new Error('Finish or cancel the current creation first');
     if (this.jobs.some(j=>j.lastRun?.status==='running')) throw new Error('Wait for the running button before changing it.');
-    if (!['codex','claude'].includes(provider)) throw new Error('Choose Codex or Claude Code');
+    if (!['claude','codex','api'].includes(provider)) throw new Error('Choose Claude Code, Codex or an Anthropic API key');
     if (typeof instruction !== 'string' || !instruction.trim() || instruction.length > 6000) throw new Error('Describe the button in 1–6000 characters');
     const before = structuredClone(this.slot(target)[target.index] ?? null);
     if (expectedActionId !== undefined && (before?.id ?? null) !== expectedActionId) {
@@ -144,7 +145,7 @@ export class ButtonAgent {
     if (!job || job.status!=='ready' || !session || session.profileId!==job.target.profileId || session.pageId!==job.target.pageId || JSON.stringify(this.slot(job.target)[job.target.index])!==JSON.stringify(job.after)) throw new Error('Select the original unchanged button before trying it.');
     if (job.lastRun?.status==='running') throw new Error('This button is already running.');
     if (!session.platform.canExecute && /^(system\.|agent\.)/.test(job.after!.type)) {
-      const message = this.engine.localOnly && session.dev.kind === 'sim'
+      const message = this.engine.isolateSimulators && session.dev.kind === 'sim'
         ? 'Mac actions are off for simulated decks. Connect a USB deck to run this button on the Mac.'
         : 'Actions are off. Enable “Perform actions on this computer” before running this button. Nothing was executed.';
       this.update(job,{lastRun:{status:'blocked',at:Date.now(),message}});

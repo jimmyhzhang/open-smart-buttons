@@ -262,3 +262,61 @@ test('pressing a button with an empty required setting explains instead of faili
   const meta = CATALOG.find((m) => m.type === 'system.open')!;
   assert.ok(validateActionSetup(meta, { path: '' }, 'key').length, 'setup refuses an empty Open');
 });
+
+test('an unset key reports once per press; strict mode is opt-in and reports once', async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), 'sdp-once-'));
+  const store = new Store(dir);
+  store.config.settings.executeActions = false;
+  const manager = new DeviceManager();
+  const strict = new Engine(store, manager, true);
+  assert.equal(new Engine(new Store(mkdtempSync(join(tmpdir(), 'sdp-default-'))), new DeviceManager()).localOnly, false, 'every action runs by default');
+  const platform = new Recording();
+  Object.defineProperty(platform, 'canExecute', { value: true });
+  const urls: string[] = [];
+  platform.openUrl = async (url: string) => { urls.push(url); };
+  strict.platform = platform;
+  const logs: string[] = [];
+  strict.on('log', (_level: string, msg: string) => logs.push(msg));
+  const dev = await manager.addSimulator('neo', { pageLatencyMs: 0 });
+  t.after(async () => { await manager.stop(); store.flush(); rmSync(dir, { recursive: true, force: true }); });
+  const session = strict.sessions.get(dev.id)!;
+  const rpc = createRpc(strict);
+  const press = async (index: number) => {
+    const s = new Array(10).fill(false); s[index] = true;
+    manager.simFor(dev)!.inject(encodeKeysInput(s));
+    manager.simFor(dev)!.inject(encodeKeysInput(new Array(10).fill(false)));
+    await new Promise((r) => setTimeout(r, 30));
+  };
+  await rpc['slots.assign']!({ profileId: session.profileId, pageId: session.pageId, kind: 'key', index: 6, type: 'system.open' });
+  await press(6);
+  assert.equal(logs.filter((l) => l.includes("isn't set up yet")).length, 1, logs.join('\n'));
+  assert.ok(!logs.some((l) => l.includes('local-only')), 'an unset key never reaches the policy check');
+  logs.length = 0;
+  // Simulated decks are isolated from the Mac, so drive the strict check on the real-platform path.
+  (strict as unknown as { isolateSimulators: boolean }).isolateSimulators = false;
+  await rpc['slots.assign']!({ profileId: session.profileId, pageId: session.pageId, kind: 'key', index: 5, type: 'system.website', settings: { url: 'https://example.com' } });
+  await press(5);
+  assert.equal(logs.filter((l) => l.includes('local-only')).length, 1, logs.join('\n'));
+  assert.deepEqual(urls, []);
+});
+
+test('a failing multi-action step is reported but the remaining steps still run', async () => {
+  const { ACTION_MAP } = await import('../src/engine/actions.ts');
+  const ran: string[] = [];
+  const steps = [
+    { id: 'a', type: 'system.command', settings: { command: 'pkill -x NotRunning' }, appearance: {} },
+    { id: 'b', type: 'system.website', settings: { url: 'https://example.com' }, appearance: {} },
+  ];
+  const c = {
+    settings: { steps }, state: {}, showOk() { ran.push('ok'); }, showAlert() {},
+    runInstance: async (s: { id: string }) => { ran.push(s.id); if (s.id === 'a') throw new Error('The command exited with code 1'); },
+  };
+  await assert.rejects(async () => ACTION_MAP.get('sd.multi')!.keyDown!(c as never), /step 1 \(Run Command\): The command exited with code 1/);
+  assert.deepEqual(ran, ['a', 'b']);
+});
+
+test('only real Accessibility errors become permission prompts', async () => {
+  const { MacPlatform, PermissionError } = await import('../src/engine/platform.ts');
+  const p = new MacPlatform(async () => ({ code: 1, stdout: '', stderr: 'The file /Users/u/ticket-1002 does not exist.' }));
+  await assert.rejects(p.openPath('/Users/u/ticket-1002'), (e: Error) => !(e instanceof PermissionError) && /doesn't exist/.test(e.message));
+});

@@ -3,7 +3,8 @@
 
 import type { StartErrorKind as ServiceStartErrorKind } from '../src/shared/native.ts';
 
-export interface InferenceConfig { apiKey?: string | null; model?: string | null }
+/** AI settings for the service. `preference` picks the engine; the key is used only by the API engine. */
+export interface InferenceConfig { apiKey?: string | null; model?: string | null; preference?: string }
 
 export interface StartRequest {
   type: 'start';

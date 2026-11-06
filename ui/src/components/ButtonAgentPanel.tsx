@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { act, client } from '../api.ts';
 import { Icon } from './Icon.tsx';
-import { isNative, native } from '../native.ts';
-import { activeButtonJob, type ButtonJob, type ButtonTarget } from '../../../src/shared/button-agent.ts';
+import { isNative, native, useNativeState } from '../native.ts';
+import { activeButtonJob, aiEngineName, type AiStatus, type ButtonJob, type ButtonTarget } from '../../../src/shared/button-agent.ts';
 
-const providerNames = { codex: 'Codex', claude: 'Claude API' };
 const jobLabels: Record<ButtonJob['status'], string> = {
   creating: 'Designing…', validating: 'Checking setup…', repairing: 'Correcting setup…',
   ready: 'Saved', 'needs-input': 'One detail needed', failed: 'Design failed',
@@ -37,14 +36,13 @@ interface Props {
 export function ButtonAgentPanel(p: Props) {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [jobs, setJobs] = useState<ButtonJob[]>([]);
-  const provider = 'claude';
   const [editingTarget, setEditingTarget] = useState<string | null>(null);
   const [runFeedback, setRunFeedback] = useState<{ actionId: string | undefined; text: string } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
   const [problem, setProblem] = useState<{ target: string; message: string } | null>(null);
   const [connectionError, setConnectionError] = useState('');
   const [now, setNow] = useState(Date.now());
-  const [tools, setTools] = useState<{ tool: string; installed: boolean }[] | null>(null);
+  const [ai, setAi] = useState<AiStatus | null>(null);
   const [availabilityError, setAvailabilityError] = useState(false);
   const [availabilityCheck, setAvailabilityCheck] = useState(0);
   const request = useRef(0);
@@ -65,7 +63,8 @@ export function ButtonAgentPanel(p: Props) {
   const workingHere = !!running && JSON.stringify(running.target) === targetKey;
   const question = selectedJob?.status === 'needs-input' ? selectedJob.summary : undefined;
   const runState = saved?.lastRun;
-  const installed = tools?.find(tool => tool.tool === provider)?.installed;
+  const engine = ai?.active ? ai.engines.find(e => e.id === ai.active) : undefined;
+  const installed = ai ? !!engine : undefined;
   const busy = !!running || !!pending || jobs.some(job => job.lastRun?.status === 'running');
   const composing = !!p.target && !p.designBlocked && !workingHere &&
     (editingTarget === targetKey || !p.title || !!question);
@@ -103,11 +102,20 @@ export function ButtonAgentPanel(p: Props) {
     return () => { stopped = true; clearTimeout(timer); request.current++; };
   }, []);
 
+  // Settings is another window: pick up an engine or key change made there, or a sign-in in Terminal.
+  const ns = useNativeState();
+  useEffect(() => {
+    const again = () => setAvailabilityCheck(n => n + 1);
+    window.addEventListener('focus', again);
+    return () => window.removeEventListener('focus', again);
+  }, []);
+  useEffect(() => { if (ns) setAvailabilityCheck(n => n + 1); }, [ns?.ai.provider, ns?.ai.hasKey]);
+
   useEffect(() => {
     let live = true;
     setAvailabilityError(false);
-    void client.rpc<{ agents: { tool: string; installed: boolean }[] }>('buttonAgent.availability')
-      .then(r => { if (live) setTools(r.agents); })
+    void client.rpc<AiStatus>('buttonAgent.availability', { refresh: availabilityCheck > 0 })
+      .then(r => { if (live) setAi(r); })
       .catch(() => { if (live) setAvailabilityError(true); });
     return () => { live = false; };
   }, [availabilityCheck]);
@@ -137,7 +145,6 @@ export function ButtonAgentPanel(p: Props) {
     await perform('Starting…', async () => {
       const job = await client.rpc<ButtonJob>('buttonAgent.start', {
         target: p.target,
-        provider,
         expectedActionId: p.actionId ?? null,
         instruction: !retryOriginal && question && selectedJob
           ? `${selectedJob.instruction}\nQuestion: ${question}\nAdditional detail: ${text}` : text,
@@ -224,7 +231,7 @@ export function ButtonAgentPanel(p: Props) {
         <div className="studio-job" role="status">
           <div className="studio-job-row">
             <span className="studio-spinner" aria-hidden="true" />
-            <div><strong>{jobLabels[running.status]}</strong><small>{providerNames[running.provider]} · {targetLabel(running.target)} · {Math.max(0, Math.floor((now - running.startedAt) / 1000))}s</small></div>
+            <div><strong>{jobLabels[running.status]}</strong><small>{aiEngineName[running.provider] ?? running.provider} · {targetLabel(running.target)} · {Math.max(0, Math.floor((now - running.startedAt) / 1000))}s</small></div>
             {!workingHere && <button className="ghost" onClick={() => p.onReveal(running.target)}>Show key</button>}
             <button ref={cancelJobButton} className="ghost" disabled={!!pending} onClick={() => cancelDesign(running)}
               onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); cancelDesign(running); } }}>Stop design</button>
@@ -260,12 +267,12 @@ export function ButtonAgentPanel(p: Props) {
                 {selectedJob && <button type="button" className="link" disabled={busy || installed !== true}
                   onClick={() => void start(selectedJob.instruction, true)}>Retry original request</button>}
               </>}
-              <small>Submitting shares your request and the selected local action with Claude.</small>
+              <small>Submitting shares your request and the selected key with {engine?.vendor ?? 'the AI engine'}.</small>
               <textarea id="agent-instruction" ref={textarea} value={instruction} maxLength={6000} rows={3}
                 placeholder={question ? 'Add the missing detail…' : p.title ? 'Describe what to change…' : 'Describe an action, e.g. “Lower volume”'}
                 onChange={e => setInstruction(e.target.value)} />
               <div className="studio-compose-bar">
-                <span className="studio-provider">Claude API</span>
+                <span className="studio-provider" title="Change in Settings ▸ AI">{engine?.name ?? 'No AI engine'}</span>
                 <div className="studio-compose-buttons">
                   {p.title && !question && <button type="button" className="ghost" onClick={closeComposer}>Cancel</button>}
                   <button className="primary" disabled={!canDesign} type="submit" aria-keyshortcuts="Meta+Enter">
@@ -278,7 +285,7 @@ export function ButtonAgentPanel(p: Props) {
 
           {composing && (installed === false || availabilityError) && (
             <p className="studio-error" role="status">
-              {availabilityError ? 'Couldn’t check Claude API configuration.' : isNative ? 'Add your Claude API key in Settings ▸ AI, or browse local actions.' : 'Claude API is not configured. See the setup guide or browse local actions.'}
+              {availabilityError ? 'Couldn’t check the AI engines.' : `${(isNative ? ai?.message : ai?.message?.replace(/ in Settings ▸ AI|, or choose another engine in Settings ▸ AI/g, '')) ?? 'No AI engine is ready.'}${isNative ? '' : ' From Terminal, you can also start with ANTHROPIC_API_KEY.'} You can also browse actions.`}
               {!availabilityError && isNative ? <button className="link" onClick={() => void native!.command('settings.open', 'ai')}>Open Settings</button> : null}
               <button className="link" onClick={() => setAvailabilityCheck(n => n + 1)}>Check again</button>
             </p>

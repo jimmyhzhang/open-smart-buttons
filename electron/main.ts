@@ -46,7 +46,7 @@ if (!smoke && !app.requestSingleInstanceLock()) {
 async function main() {
   const prefs = new PrefStore(app.getPath('userData'));
   const secrets = new SecretStore(app.getPath('userData'));
-  const inference = () => ({ apiKey: secrets.get(), model: prefs.value.model });
+  const inference = () => ({ apiKey: secrets.get(), model: prefs.value.model, preference: prefs.value.aiProvider });
   const host = new ServiceHost({
     entry: join(here, 'service-entry.ts'),
     dataDir,
@@ -121,9 +121,10 @@ async function main() {
       showInMenuBar: prefs.value.showInMenuBar,
       checkForUpdates: prefs.value.checkForUpdates,
       model: prefs.value.model,
+      aiProvider: prefs.value.aiProvider,
       theme: prefs.value.theme,
     },
-    ai: { hasKey: secrets.has(), model: prefs.value.model, secureStorage: secrets.available() },
+    ai: { hasKey: secrets.has(), model: prefs.value.model, provider: prefs.value.aiProvider, secureStorage: secrets.available() },
     update: updateStatus(),
     elgato: elgatoStatus(),
     dataDir,
@@ -299,7 +300,7 @@ async function main() {
   watchPower(() => void rpc('devices.refresh'));
 
   // ---- IPC: the renderer's only door into the main process -------------------------------------
-  const PREF_KEYS: readonly PrefKey[] = ['openAtLogin', 'showInMenuBar', 'checkForUpdates', 'theme', 'model'];
+  const PREF_KEYS: readonly PrefKey[] = ['openAtLogin', 'showInMenuBar', 'checkForUpdates', 'theme', 'model', 'aiProvider'];
   const guard = (event: IpcMainInvokeEvent) => {
     if (!isAppUrl(event.senderFrame?.url)) throw new Error('Not allowed from this page.');
   };
@@ -325,6 +326,11 @@ async function main() {
         host.setInference(inference());
         break;
       }
+      case 'aiProvider':
+        if (value !== 'auto' && value !== 'claude' && value !== 'codex' && value !== 'api') throw new Error('Unknown AI engine.');
+        prefs.set('aiProvider', value);
+        host.setInference(inference());
+        break;
     }
     broadcast();
     refreshMenus();

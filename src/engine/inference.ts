@@ -20,9 +20,13 @@ export function inferenceAvailable(): boolean {
   return Boolean(apiKey && model);
 }
 
+export function inferenceModel(): string | undefined {
+  return model;
+}
+
 export const runInference: ButtonRunner = async (provider, prompt, _workspace, signal) => {
-  if (provider !== 'claude') throw new Error('Choose Claude API. CLI agents are unavailable under the local-only policy.');
-  if (!apiKey || !model) throw new Error('Add a Claude API key and model before designing a button.');
+  if (provider !== 'api') throw new Error('The Anthropic API runs only API-key designs.');
+  if (!apiKey || !model) throw new Error('Add an Anthropic API key and model in Settings ▸ AI.');
   const raw = await postMessages(apiKey, {
     model,
     max_tokens: 4096,
@@ -37,7 +41,7 @@ export const runInference: ButtonRunner = async (provider, prompt, _workspace, s
 
 /** Settings > AI > Test: one tiny request with the configured key and model. */
 export async function testInference(): Promise<{ ok: boolean; message: string }> {
-  if (!apiKey || !model) return { ok: false, message: 'Add a Claude API key and model first.' };
+  if (!apiKey || !model) return { ok: false, message: 'Add an Anthropic API key and model first.' };
   try {
     await postMessages(apiKey, { model, max_tokens: 1, messages: [{ role: 'user', content: 'Reply with OK.' }] }, AbortSignal.timeout(30_000));
     return { ok: true, message: `Connected to Claude with ${model}.` };

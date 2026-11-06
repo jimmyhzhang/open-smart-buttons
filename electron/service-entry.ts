@@ -3,7 +3,15 @@
 // never in argv or the environment, so `ps eww` shows neither.
 
 import { renameSync, existsSync } from 'node:fs';
-import { configureInference, testInference } from '../src/engine/inference.ts';
+import { configureInference } from '../src/engine/inference.ts';
+import { invalidateAiEngines, setAiPreference, testAi } from '../src/engine/ai-engines.ts';
+import type { InferenceConfig } from './protocol.ts';
+
+function configureAi(config: InferenceConfig) {
+  configureInference(config);
+  setAiPreference(config.preference);
+  invalidateAiEngines();
+}
 import { recoverDataDir } from '../src/engine/data-recovery.ts';
 import { startService, ServiceStartError, type RunningService } from '../src/server/service.ts';
 import type { HostMessage, ServiceMessage, StartRequest } from './protocol.ts';
@@ -23,7 +31,7 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (error) => console.error('unhandled:', error));
 
 async function start(request: StartRequest) {
-  configureInference(request.inference);
+  configureAi(request.inference);
   try {
     starting = startService({
       dataDir: request.dataDir,
@@ -77,9 +85,9 @@ port.on('message', ({ data }) => {
   switch (data?.type) {
     case 'start': void start(data); break;
     case 'stop': void stop(); break;
-    case 'setInference': configureInference(data.inference); break;
+    case 'setInference': configureAi(data.inference); break;
     case 'repair': repair(data.id, data.dataDir, data.stamp); break;
-    case 'testInference': void testInference().then((r) => send({ type: 'inferenceTested', id: data.id, ...r })); break;
+    case 'testInference': void testAi().then((r) => send({ type: 'inferenceTested', id: data.id, ...r })); break;
   }
 });
 send({ type: 'hello', pid: process.pid });

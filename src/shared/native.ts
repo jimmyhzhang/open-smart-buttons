@@ -12,6 +12,8 @@ export type ServicePhase =
   | { phase: 'error'; kind: StartErrorKind; message: string }
   | { phase: 'stopping' };
 
+import type { AiPreference } from './button-agent.ts';
+
 export type ThemePref = 'system' | 'light' | 'dark';
 
 export interface Prefs {
@@ -23,12 +25,14 @@ export interface Prefs {
   checkForUpdates: boolean;
   closeNoticeShown: boolean;
   model: string;
+  /** Which AI designs buttons. Automatic: Claude Code, then Codex, then the API key. */
+  aiProvider: AiPreference;
   theme: ThemePref;
   windowBounds?: { x: number; y: number; width: number; height: number };
 }
 
 export type PublicPrefs = Omit<Prefs, 'port' | 'windowBounds' | 'closeNoticeShown'>;
-export type PrefKey = 'openAtLogin' | 'showInMenuBar' | 'checkForUpdates' | 'theme' | 'model';
+export type PrefKey = 'openAtLogin' | 'showInMenuBar' | 'checkForUpdates' | 'theme' | 'model' | 'aiProvider';
 
 export type UpdateStatus =
   | { state: 'idle' }
@@ -47,7 +51,7 @@ export interface NativeState {
   packaged: boolean;
   service: ServicePhase;
   prefs: PublicPrefs;
-  ai: { hasKey: boolean; model: string; secureStorage: boolean };
+  ai: { hasKey: boolean; model: string; provider: AiPreference; secureStorage: boolean };
   update: UpdateStatus;
   elgato: ElgatoStatus;
   dataDir: string;

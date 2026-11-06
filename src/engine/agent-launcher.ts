@@ -1,7 +1,8 @@
 // Interactive CLI launches only. This module never reads credentials or invokes a model itself.
 import { accessSync, constants, statSync } from 'node:fs';
-import { delimiter, isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
+import { fallbackDirs, userPathDirs } from './user-env.ts';
 
 export type AgentTool = 'codex' | 'claude';
 export interface AgentLaunchOptions {
@@ -26,13 +27,10 @@ export interface AgentAvailability {
 const TOOLS: Record<AgentTool, string> = { codex: 'Codex CLI', claude: 'Claude Code' };
 
 function executableDirs(home: string): string[] {
-  return [...new Set([
-    ...(process.env.PATH ?? '').split(delimiter),
-    join(home, '.local', 'bin'), '/opt/homebrew/bin', '/usr/local/bin', '/usr/bin', '/bin',
-  ].filter((dir) => isAbsolute(dir)))];
+  return [...new Set([...userPathDirs(), ...fallbackDirs(home)].filter((dir) => isAbsolute(dir)))];
 }
 
-function findExecutable(tool: AgentTool, dirs: readonly string[]): string | null {
+export function findExecutable(tool: AgentTool, dirs: readonly string[]): string | null {
   for (const dir of dirs) {
     const file = join(dir, tool);
     try {
