@@ -1,0 +1,26 @@
+:root {
+  --bg: #e9ecee; --fg: #1b2026; --muted: #5a626a; --card: #f3f4f5; --line: rgba(0,0,0,.1);
+  --accent: #0b655e; --accent-fg: #ffffff;
+  font: 13px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #181b1e; --fg: #e5e8eb; --muted: #8d969f; --card: #202427; --line: rgba(255,255,255,.12); --accent: #2dd4bf; --accent-fg: #062b27; }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--fg); -webkit-user-select: none; user-select: none; cursor: default; }
+.drag { position: fixed; inset: 0 0 auto 0; height: 44px; -webkit-app-region: drag; }
+main { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 32px; text-align: center; }
+h1 { font-size: 17px; font-weight: 600; margin: 8px 0 0; letter-spacing: -.01em; }
+p { margin: 0; max-width: 420px; color: var(--muted); }
+p.detail { font-size: 12px; -webkit-user-select: text; user-select: text; }
+.actions { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+button { font: inherit; padding: 5px 14px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--fg); cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: transparent; }
+button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 50%, transparent); outline-offset: 1px; }
+button:disabled { opacity: .5; }
+.glyph { width: 44px; height: 44px; border-radius: 11px; display: grid; place-items: center; background: color-mix(in srgb, var(--fg) 8%, transparent); font-size: 22px; }
+.spinner { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid color-mix(in srgb, var(--fg) 18%, transparent); border-top-color: var(--fg); animation: spin .9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .spinner { animation-duration: 3s; } }
+.note { font-size: 12px; margin-top: 6px; }

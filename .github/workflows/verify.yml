@@ -1,0 +1,124 @@
+name: Verify macOS source
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [macos-15, macos-15-intel]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Install and verify the public source export
+        run: |
+          candidate="$(mktemp -d)/source"
+          npm run export:source -- "$candidate"
+          test -f "$candidate/package-lock.json"
+          test -f "$candidate/.github/workflows/verify.yml"
+          test "$(find "$candidate" -type f \( -name '*.tgz' -o -name '*.mp4' -o -name '.env*' -o -name '*.icns' \) | wc -l | tr -d ' ')" -eq 0
+          cd "$candidate"
+          npm ci
+          scripts/verify-offline.sh
+
+  # Builds, signs and checks the desktop app on each architecture's native runner. Without signing
+  # secrets (forks, pull requests) it builds an ad-hoc signed app and still runs every local check.
+  package:
+    needs: verify
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x64
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - name: Tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: test "${GITHUB_REF_NAME#v}" = "$(node -p "require('./package.json').version")"
+      - run: npm ci
+      - name: Desktop app tests
+        run: npm run build:ui && npm run test:app
+      - name: Package
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE_P12_BASE64 }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          SDP_GITHUB_OWNER: ${{ github.repository_owner }}
+          SDP_GITHUB_REPO: ${{ github.event.repository.name }}
+        run: |
+          if [ -n "$CSC_LINK" ] && [ -n "$APPLE_API_KEY_CONTENT" ]; then
+            export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
+            printf '%s' "$APPLE_API_KEY_CONTENT" > "$APPLE_API_KEY"
+            node scripts/build-electron.mjs --dist --arch ${{ matrix.arch }}
+            echo "RELEASE_CHECK=--release" >> "$GITHUB_ENV"
+          else
+            unset CSC_LINK CSC_KEY_PASSWORD SDP_GITHUB_OWNER SDP_GITHUB_REPO
+            node scripts/build-electron.mjs --dmg --arch ${{ matrix.arch }}
+          fi
+      - name: Check the packaged app
+        run: node scripts/check-app.mjs dist-app/mac*/StreamDeckPlus.app ${RELEASE_CHECK:-}
+      - uses: actions/upload-artifact@v5
+        with:
+          name: StreamDeckPlus-${{ matrix.arch }}
+          path: |
+            dist-app/*.dmg
+            dist-app/*.zip
+            dist-app/*.blockmap
+            dist-app/latest-mac.yml
+          if-no-files-found: error
+
+  # Tags (vX.Y.Z) create a draft GitHub Release with both architectures and one merged update feed.
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: package
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22.18.0
+          package-manager-cache: false
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+      - name: Merge the update feeds and draft the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then echo "Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; fi
+          mkdir release
+          node scripts/merge-latest-mac.mjs release/latest-mac.yml artifacts/StreamDeckPlus-arm64/latest-mac.yml artifacts/StreamDeckPlus-x64/latest-mac.yml
+          cp artifacts/*/*.dmg artifacts/*/*.zip artifacts/*/*.blockmap release/
+          gh release create "$GITHUB_REF_NAME" --draft --title "StreamDeckPlus ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." release/*

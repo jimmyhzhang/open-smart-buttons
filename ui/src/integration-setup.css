@@ -1,0 +1,126 @@
+/* Keep the essential field and save action visible while options scroll. */
+.action-composer.compact-setup {
+  width: min(520px, calc(100vw - 24px));
+  max-height: min(720px, calc(100dvh - 24px));
+  border-radius: 22px;
+}
+
+.compact-setup .composer-header {
+  padding: 22px 22px 19px;
+  gap: 15px;
+  flex: none;
+}
+.compact-setup .composer-header h2 {
+  margin-bottom: 4px;
+  font-size: 19px;
+}
+.compact-setup .composer-header p {
+  font-size: 13px;
+  line-height: 1.45;
+}
+.compact-setup .action-tile {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  border-radius: 12px;
+  padding: 7px 4px 5px;
+  gap: 2px;
+  box-shadow: inset 0 1px 0 #ffffff26, 0 2px 0 #03070a;
+}
+.compact-setup .action-tile .preview-title {
+  font-size: 8px;
+  max-height: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.compact-setup .action-tile img { width: 27px; height: 27px; object-fit: contain; }
+.compact-setup .action-tile .preview-emoji { font-size: 20px; }
+.compact-setup .composer-body { display: block; overflow: auto; }
+.compact-setup .composer-fields { padding: 17px 22px; gap: 12px; overflow: visible; }
+.compact-setup .composer-fields .fields { gap: 12px; }
+.compact-setup .composer-fields .help { font-size: 12px; line-height: 1.5; }
+.compact-setup .composer-fields .field :is(input:not([type="checkbox"]), select, textarea) { min-height: 40px; }
+.compact-setup .composer-fields .field textarea { min-height: 74px; }
+.compact-setup .composer-fields .path-field button { min-height: 40px; }
+.compact-setup .composer-footer {
+  padding: 13px 22px;
+  gap: 12px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  flex: none;
+}
+.compact-setup .setup-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+.compact-setup .setup-actions button {
+  flex: none;
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.compact-setup .setup-actions kbd {
+  color: inherit;
+  border-color: currentColor;
+  font: inherit;
+  font-size: 11px;
+  opacity: .8;
+}
+.compact-setup .setup-slot {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  min-width: 0;
+  flex: 1 1 120px;
+  max-width: 100%;
+}
+.compact-setup .setup-slot select {
+  max-width: 100%;
+  min-height: 36px;
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.compact-setup .setup-feedback {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.compact-setup .setup-feedback .icon { flex: none; margin-top: 1px; }
+.compact-setup .setup-feedback > span { flex: 1; }
+.compact-setup .setup-feedback button { flex: none; padding: 0 5px; font-size: inherit; }
+.compact-setup .setup-warning { color: var(--warn); }
+.compact-setup .setup-description { margin: 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+.compact-setup .setup-description:not(.warn) { color: var(--muted); }
+.compact-setup .setup-disclosure {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+}
+.compact-setup .setup-disclosure summary {
+  min-height: 36px;
+  padding: 4px 0;
+  cursor: pointer;
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 550;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  list-style: none;
+}
+.compact-setup .setup-disclosure summary::-webkit-details-marker { display: none; }
+.compact-setup .setup-disclosure summary > .icon { color: var(--muted); }
+.compact-setup .setup-disclosure[open] summary > .icon { transform: rotate(90deg); }
+.compact-setup .setup-disclosure summary > span:not(.icon) { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; }
+.compact-setup .setup-disclosure[open] summary { margin-bottom: 8px; }
+.compact-setup .setup-disclosure .color-choices { flex-wrap: wrap; }
+@media (max-width: 430px) {
+  .compact-setup .composer-header, .compact-setup .composer-fields, .compact-setup .composer-footer { padding-inline: 15px; }
+  .compact-setup .setup-actions kbd { display: none; }
+}

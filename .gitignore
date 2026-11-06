@@ -1,0 +1,26 @@
+node_modules/
+ui/dist/
+*.log
+.DS_Store
+.env
+.env.*
+*.tgz
+*.tar.gz
+*.mp4
+docs/plans/
+docs/reports/
+
+
+# Desktop app build outputs
+dist-app/
+build/icon.icns
+build/icon.png
+build/NATIVE_NOTICES.txt
+
+# Local working notes and throwaway spikes (never part of a release)
+re/
+.firecrawl/
+spike/
+
+# Internal agent-driven checks (not part of the public test suite)
+test/browser/
