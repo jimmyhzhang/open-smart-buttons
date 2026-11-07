@@ -275,6 +275,8 @@ test('action studio end to end: isolated HTTP/RPC setup, dry-run Neo routing, at
     const appearance = { title: 'Saved agent', icon: { kind: 'lucide', name: 'terminal' }, bg: '#314159' };
     const id = await assign('agent.codex', settings, { appearance });
     const expected = { id, type: 'agent.codex', settings, appearance };
+    assert.deepEqual(rpc.states.at(-1)?.config.profiles[0]!.pages['primary-main']!.keys[0], expected,
+      'the saved action reaches the editor before the save RPC resolves');
     assert.deepEqual((await app.state()).config.profiles[0]!.pages['primary-main']!.keys[0], expected);
     await eventually(() => rpc.states.slice(stateStart).some((state) => state.config.profiles[0]!.pages['primary-main']!.keys[0]?.id === id), 'configured assignment state was not broadcast');
     for (const state of rpc.states.slice(stateStart)) {

@@ -6,6 +6,7 @@ import type { MediaCmd, Platform } from './platform.ts';
 import { commandFailure, formatHotkey, MAC_CONTROLS, type MacControlOp } from './platform.ts';
 import type { TouchVisual } from '../render/renderer.ts';
 import { validateActionSetup } from '../shared/action-setup.ts';
+import type { AgentTaskInput, AgentTask } from '../shared/agent-task.ts';
 
 export interface SessionApi {
   nextPage(): void;
@@ -33,6 +34,7 @@ export interface ActionCtx {
   showAlert(): void;
   log(msg: string): void;
   runInstance(inst: ActionInstance): Promise<void>;
+  runAgent?(input: AgentTaskInput): AgentTask;
 }
 
 export interface KeyDynamic {
@@ -115,12 +117,13 @@ export const ACTIONS: ActionDef[] = [
     meta: {
       type: `agent.${tool}`, name: tool === 'codex' ? 'Codex CLI' : 'Claude Code', category: 'AI & coding',
       icon: tool === 'codex' ? 'terminal' : 'sparkles', color: tool === 'codex' ? '#60a5fa' : '#f5ab78',
-      description: `Open ${tool === 'codex' ? 'Codex' : 'Claude Code'} in Terminal with your project and an optional task.`,
+      description: `Run a saved prompt with ${tool === 'codex' ? 'Codex' : 'Claude Code'}, or open a project session in Terminal.`,
       controllers: ['key'],
       fields: [
-        { key: 'cwd', label: 'Project folder', type: 'text', placeholder: '~/repos/my-project', required: true, browse: 'folder', help: 'An existing folder on this Mac. The agent opens here.' },
+        { key: 'prompt', label: 'Prompt', type: 'textarea', placeholder: tool === 'codex' ? '$skill-name Review this project and explain your findings.' : '/skill-name Review this project and explain your findings.', help: tool === 'codex' ? 'Include $skill-name to use an installed Codex skill.' : 'Start with /skill-name to use an installed Claude Code skill.' },
+        { key: 'cwd', label: 'Project folder', type: 'text', placeholder: '~/repos/my-project', required: true, browse: 'folder', help: 'The CLI runs here and loads this project’s instructions and skills.' },
+        { key: 'execution', label: 'Run in', type: 'select', options: [{ value: 'background', label: 'Background' }, { value: 'terminal', label: 'Terminal' }], help: 'Background shows progress and the response here. Terminal supports interactive approvals.' },
         { key: 'mode', label: 'Session', type: 'select', options: [{ value: 'new', label: 'Start a new session' }, { value: 'continue', label: 'Continue the last session in this project' }] },
-        { key: 'prompt', label: 'Starting task (optional)', type: 'textarea', placeholder: 'Review the current changes and suggest improvements.', help: 'Leave empty to open the agent. A saved task starts when you press or test the button.' },
       ],
       defaults: { cwd: '', mode: 'new', prompt: '' },
     },
@@ -128,12 +131,21 @@ export const ACTIONS: ActionDef[] = [
       if (c.state.launching) return;
       const error = validateActionSetup(ACTION_MAP.get(c.instance.type)!.meta, c.settings, 'key')[0];
       if (error) throw new Error(error);
+      if (c.settings.execution === 'background' && c.platform.canExecute) {
+        if (!c.runAgent) throw new Error('Background execution is unavailable. Choose Terminal in this button’s setup.');
+        c.runAgent({ tool, cwd: String(c.settings.cwd), prompt: String(c.settings.prompt) });
+        return;
+      }
       c.state.launching = true;
       try {
         await c.platform.launchAgent({ tool, cwd: String(c.settings.cwd), mode: c.settings.mode === 'continue' ? 'continue' : 'new', prompt: String(c.settings.prompt || '') });
         c.log(`${tool === 'codex' ? 'Codex' : 'Claude Code'} ${c.platform.canExecute ? 'handed off to Terminal' : 'launch simulated (dry run)'}`);
         c.showOk();
       } finally { c.state.launching = false; }
+    },
+    key(c) {
+      return c.state.agentStatus === 'running' ? { iconOverride: 'loader-circle' }
+        : c.state.agentStatus === 'failed' ? { iconOverride: 'circle-alert' } : {};
     },
   })),
   ...(['raycast', 'asyar'] as const).map((provider): ActionDef => ({

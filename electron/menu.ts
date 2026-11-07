@@ -59,7 +59,7 @@ export function buildAppMenu(h: MenuHandlers): void {
         { label: 'Use Mode', accelerator: 'Command+2', enabled: editor, click: send('mode.use') },
         { type: 'separator' },
         // ⌘K stays with the renderer (it also works while typing in the action search).
-        { label: 'Browse Actions', accelerator: 'Command+K', registerAccelerator: false, enabled: editor, click: send('actions.browse') },
+        { label: 'Set Up Manually…', accelerator: 'Command+K', registerAccelerator: false, enabled: editor, click: send('actions.browse') },
         // ⌘I also stays with the renderer, which knows the selected key.
         { label: 'Configure Selected Key…', accelerator: 'Command+I', registerAccelerator: false, enabled: editor, click: send('slot.configure') },
         { label: 'Show Activity', accelerator: 'Shift+Command+L', enabled: editor, click: send('activity.toggle') },

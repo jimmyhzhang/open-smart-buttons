@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react';
-import type { DeviceSummary, Profile } from '../../../src/shared/types.ts';
-import { STARTER_LAYOUTS } from '../../../src/shared/starter-layouts.ts';
+import type { DeviceSummary, Page, Profile } from '../../../src/shared/types.ts';
+import { STARTER_LAYOUTS, type StarterLayout } from '../../../src/shared/starter-layouts.ts';
 import { act, client, toast } from '../api.ts';
 import { Icon } from './Icon.tsx';
 import { ImageButton } from './Inspector.tsx';
 
-export function PagesBar({ device, profile }: { device: DeviceSummary; profile: Profile }) {
+export function PagesBar({ device, profile, editable }: { device: DeviceSummary; profile: Profile; editable: boolean }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const current = profile.pages[device.pageId];
@@ -27,7 +27,7 @@ export function PagesBar({ device, profile }: { device: DeviceSummary; profile: 
           {[...device.stack, device.pageId].map((id, i, arr) => (
             <span key={id} className="crumb">
               {i > 0 ? <Icon name="chevron-right" size={13} /> : null}
-              <button className={i === arr.length - 1 ? 'here' : 'link'} onClick={() => act('session.setPage', { deviceId: device.id, pageId: id })}>
+              <button className={i === arr.length - 1 ? 'here' : 'link'} aria-current={i === arr.length - 1 ? 'page' : undefined} onClick={() => act('session.setPage', { deviceId: device.id, pageId: id })}>
                 {i > 0 ? <Icon name="folder" size={13} /> : null} {profile.pages[id]?.name}
               </button>
             </span>
@@ -42,7 +42,7 @@ export function PagesBar({ device, profile }: { device: DeviceSummary; profile: 
               <li
                 key={id}
                 className={`page-tab ${on ? 'on' : ''} ${dragId === id ? 'dragging' : ''}`}
-                draggable={editing !== id}
+                draggable={editable && editing !== id}
                 onDragStart={(e) => {
                   setDragId(id);
                   e.dataTransfer.setData('application/x-sdp-page', id);
@@ -51,13 +51,13 @@ export function PagesBar({ device, profile }: { device: DeviceSummary; profile: 
                 onDragOver={(e) => e.dataTransfer.types.includes('application/x-sdp-page') && e.preventDefault()}
                 onDrop={(e) => {
                   const from = e.dataTransfer.getData('application/x-sdp-page');
-                  if (!from || from === id) return;
+                  if (!editable || !from || from === id) return;
                   const order = profile.pageOrder.filter((x) => x !== from);
                   order.splice(order.indexOf(id) + (profile.pageOrder.indexOf(from) < i ? 1 : 0), 0, from);
                   void act('pages.reorder', { profileId: profile.id, order });
                 }}
               >
-                {editing === id ? (
+                {editable && editing === id ? (
                   <input
                     autoFocus
                     defaultValue={pg.name}
@@ -69,19 +69,22 @@ export function PagesBar({ device, profile }: { device: DeviceSummary; profile: 
                     }}
                   />
                 ) : (
-                  <button onClick={() => act('session.setPage', { deviceId: device.id, pageId: id })} onDoubleClick={() => setEditing(id)} title="Double-click to rename, drag to reorder">
+                  <button aria-current={on ? 'page' : undefined} onClick={() => act('session.setPage', { deviceId: device.id, pageId: id })}
+                    onDoubleClick={editable ? () => setEditing(id) : undefined}
+                    onKeyDown={editable ? (e) => { if (e.key === 'F2') { e.preventDefault(); setEditing(id); } } : undefined}
+                    title={editable ? 'Double-click or press F2 to rename. Drag to reorder.' : undefined}>
                     <span className="page-n">{i + 1}</span> {pg.name}
                   </button>
                 )}
               </li>
             );
           })}
-          <li>
+          {editable && <li>
             <AddPageMenu device={device} profile={profile} />
-          </li>
+          </li>}
         </ol>
       )}
-      <div className="page-tools">
+      {editable && <div className="page-tools">
         {current && !inFolder ? (
           <>
             <button className="ghost icon-btn" title="Duplicate page" aria-label="Duplicate page" onClick={() => act('pages.duplicate', { profileId: profile.id, pageId: current.id })}>
@@ -108,9 +111,14 @@ export function PagesBar({ device, profile }: { device: DeviceSummary; profile: 
             ) : null}
           </>
         ) : null}
-      </div>
+      </div>}
     </nav>
   );
+}
+
+async function addPresetPage(profileId: string, deviceId: string, layout: StarterLayout) {
+  const pageId = await client.rpc<string>('pages.addStarter', { profileId, deviceId, layoutId: layout.id });
+  toast(`${layout.name} page added`, 'info', { label: 'Undo', run: () => act('pages.delete', { profileId, pageId }) });
 }
 
 function AddPageMenu({ device, profile }: { device: DeviceSummary; profile: Profile }) {
@@ -136,11 +144,10 @@ function AddPageMenu({ device, profile }: { device: DeviceSummary; profile: Prof
     requestAnimationFrame(() => root.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus());
     return () => { window.removeEventListener('mousedown', close); window.removeEventListener('keydown', esc); };
   }, [open]);
-  const addStarter = async (layoutId: string, name: string) => {
+  const addStarter = async (layout: StarterLayout) => {
     setOpen(false);
     try {
-      const pageId = await client.rpc<string>('pages.addStarter', { profileId: profile.id, deviceId: device.id, layoutId });
-      toast(`${name} page added`, 'info', { label: 'Undo', run: () => act('pages.delete', { profileId: profile.id, pageId }) });
+      await addPresetPage(profile.id, device.id, layout);
     } catch (e) { toast((e as Error).message, 'error'); }
   };
   return (
@@ -160,7 +167,7 @@ function AddPageMenu({ device, profile }: { device: DeviceSummary; profile: Prof
           </button>
           <div className="menu-label">Start from a layout</div>
           {STARTER_LAYOUTS.map((l) => (
-            <button key={l.id} role="menuitem" className="menu-item starter-item" style={{ '--accent': l.color } as CSSProperties} onClick={() => addStarter(l.id, l.name)}>
+            <button key={l.id} role="menuitem" className="menu-item starter-item" style={{ '--accent': l.color } as CSSProperties} onClick={() => addStarter(l)}>
               <Icon name={l.icon} size={15} /><span className="grow"><b>{l.name}</b><small>{l.description}</small></span>
             </button>
           ))}
@@ -170,22 +177,40 @@ function AddPageMenu({ device, profile }: { device: DeviceSummary; profile: Prof
   );
 }
 
-/** Shown under the device when the current page has nothing on it. */
-export function EmptyPageStarter({ profile, pageId }: { profile: Profile; pageId: string }) {
-  const fill = async (layoutId: string, name: string) => {
+export function PresetButtonGroups({ profile, page, device, showHeading }: { profile: Profile; page: Page; device: DeviceSummary; showHeading: boolean }) {
+  const empty = !page.keys.some(Boolean) && !page.dials.some(Boolean);
+  const [applying, setApplying] = useState<string | null>(null);
+  const apply = async (layout: StarterLayout) => {
+    if (applying) return;
+    setApplying(layout.id);
     try {
-      const r = await client.rpc<{ added: { kind: 'key' | 'dial'; index: number; id: string }[] }>('pages.fillStarter', { profileId: profile.id, pageId, layoutId });
-      toast(`${name} layout added`, 'info', { label: 'Undo', run: () => Promise.all(r.added.map((a) => client.rpc('slots.clear', { profileId: profile.id, pageId, kind: a.kind, index: a.index, expectedActionId: a.id }).catch(() => {}))) });
+      if (!empty) {
+        await addPresetPage(profile.id, device.id, layout);
+        return;
+      }
+      const pageId = page.id;
+      const r = await client.rpc<{ added: { kind: 'key' | 'dial'; index: number; id: string }[] }>('pages.fillStarter', { profileId: profile.id, pageId, layoutId: layout.id });
+      if (r.added.length) {
+        toast(`${layout.name} buttons added`, 'info', { label: 'Undo', run: () => Promise.all(r.added.map(a =>
+          act('slots.clear', { profileId: profile.id, pageId, kind: a.kind, index: a.index, expectedActionId: a.id }))) });
+      } else toast('No compatible buttons could be added to this page.');
     } catch (e) { toast((e as Error).message, 'error'); }
+    finally { setApplying(null); }
   };
   return (
-    <div className="empty-starter" role="group" aria-label="Fill this page from a layout">
-      <span>Empty page — start with</span>
-      {STARTER_LAYOUTS.map((l) => (
-        <button key={l.id} className="starter-chip" style={{ '--accent': l.color } as CSSProperties} onClick={() => fill(l.id, l.name)} title={l.description}>
-          <Icon name={l.icon} size={14} />{l.name}
-        </button>
-      ))}
-    </div>
+    <section className="studio-presets" aria-label="Preset button groups">
+      {showHeading && <h2>Preset button groups</h2>}
+      <p>{empty ? 'Fill this empty page with a set of ready-to-use buttons.' : 'Add a new page of buttons to this profile.'}</p>
+      <div className="studio-preset-grid">
+        {STARTER_LAYOUTS.map(l => (
+          <button key={l.id} className="studio-preset" type="button" disabled={!!applying}
+            onClick={() => void apply(l)} title={l.description}>
+            <Icon name={l.icon} size={16} />
+            <span>{applying === l.id ? 'Adding…' : l.name}</span>
+            <Icon name="plus" size={13} />
+          </button>
+        ))}
+      </div>
+    </section>
   );
 }

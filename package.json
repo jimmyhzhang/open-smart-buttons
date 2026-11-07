@@ -78,6 +78,7 @@
     "electron/status.css",
     "electron-builder.config.mjs",
     "build/entitlements.mac.plist",
+    "build/entitlements.adhoc.mac.plist",
     "scripts/build-electron.mjs",
     "scripts/check-app.mjs",
     "scripts/make-icons.mjs",

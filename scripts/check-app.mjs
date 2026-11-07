@@ -30,6 +30,9 @@ if (release) {
   const staple = sh('/usr/bin/xcrun', ['stapler', 'validate', appPath]);
   check('notarization ticket stapled', staple.status === 0);
   check('Developer ID signature', /Authority=Developer ID Application/.test(info));
+  const entitlements = sh('/usr/bin/codesign', ['-d', '--entitlements', ':-', appPath]);
+  check('distribution library validation enabled', entitlements.status === 0 &&
+    !`${entitlements.stdout}\n${entitlements.stderr}`.includes('com.apple.security.cs.disable-library-validation'));
 }
 
 // 2. Fuses

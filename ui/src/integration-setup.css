@@ -78,10 +78,8 @@
   flex: 1 1 120px;
   max-width: 100%;
 }
-.compact-setup .setup-slot select {
-  max-width: 100%;
-  min-height: 36px;
-  font-size: 12px;
+.compact-setup select.setup-slot {
+  min-height: 40px;
   text-overflow: ellipsis;
 }
 .compact-setup .setup-feedback {
@@ -120,6 +118,13 @@
 .compact-setup .setup-disclosure summary > span:not(.icon) { margin-left: auto; color: var(--muted); font-size: 12px; font-weight: 400; }
 .compact-setup .setup-disclosure[open] summary { margin-bottom: 8px; }
 .compact-setup .setup-disclosure .color-choices { flex-wrap: wrap; }
+.compact-setup .setup-appearance { border-top: 0; padding-top: 0; }
+.compact-setup .setup-icon-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.compact-setup .setup-icon-row button { min-height: 34px; }
+.compact-setup .setup-appearance .picker { margin-top: 8px; }
+.compact-setup .setup-appearance .picker-grid { height: 128px; align-content: start; }
+.compact-setup .setup-essential { border-top: 1px solid var(--line); padding-top: 12px; }
+.compact-setup .setup-essential h3 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
 @media (max-width: 430px) {
   .compact-setup .composer-header, .compact-setup .composer-fields, .compact-setup .composer-footer { padding-inline: 15px; }
   .compact-setup .setup-actions kbd { display: none; }

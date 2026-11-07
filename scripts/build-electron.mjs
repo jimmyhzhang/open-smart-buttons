@@ -52,6 +52,8 @@ if (!env.CSC_LINK && !env.CSC_NAME) {
     console.log(`Signing with ${pick.name}${pick.name.startsWith('Apple Development') ? ' (fine on this Mac, not for distribution)' : ''}.`);
   } else {
     config.mac.identity = '-';
+    config.mac.entitlements = 'build/entitlements.adhoc.mac.plist';
+    config.mac.entitlementsInherit = config.mac.entitlements;
     console.warn('No signing identity found: ad-hoc signing. macOS will ask for permissions again after each build.');
   }
 }

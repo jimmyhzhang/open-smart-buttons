@@ -115,3 +115,19 @@ test('failure to create the initial journal record does not register a running j
   assert.equal((await done(service, service.start(target, 'Retry counter', 'claude').id)).status, 'ready');
   assert.equal(calls, 1);
 });
+
+test('clarification context accepts two full UI messages while keeping a bounded request', async t => {
+  let received = '';
+  const { service, target, store } = await boot(t, async (_provider, prompt) => {
+    received = prompt;
+    return proposal;
+  });
+  const instruction = `${'Request '.repeat(750)}\nQuestion: Which action?\nUser answer: ${'Answer. '.repeat(750)}`;
+  assert.ok(instruction.length > 6000);
+  const job = await done(service, service.start(target, instruction, 'codex').id);
+  assert.equal(job.status, 'ready');
+  assert.ok(received.includes(instruction.trim()));
+  const before = JSON.stringify(store.config);
+  assert.throws(() => service.start(target, 'x'.repeat(16001), 'codex'), /16000/);
+  assert.equal(JSON.stringify(store.config), before);
+});

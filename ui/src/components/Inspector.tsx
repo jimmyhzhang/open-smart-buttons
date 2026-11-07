@@ -95,56 +95,93 @@ export function Inspector(p: Props) {
   );
 }
 
-const BG_PRESETS = ['#000000', '#0f172a', '#163456', '#2c2350', '#3f2235', '#10443d', '#4a301e', '#7f1d1d'];
+const BG_PRESETS = [
+  { name: 'Black', color: '#000000' },
+  { name: 'Midnight', color: '#0f172a' },
+  { name: 'Navy', color: '#163456' },
+  { name: 'Purple', color: '#2c2350' },
+  { name: 'Plum', color: '#3f2235' },
+  { name: 'Teal', color: '#10443d' },
+  { name: 'Brown', color: '#4a301e' },
+  { name: 'Red', color: '#7f1d1d' },
+];
 
 function AppearanceEditor({ ap, meta, kind, onChange }: { ap: Appearance; meta?: ActionMeta; kind: 'key' | 'dial'; onChange(a: Partial<Appearance>): void }) {
   const [picker, setPicker] = useState(false);
   const icon = ap.icon;
   return (
-    <div className="fields">
+    <div className="fields appearance-editor">
       <div className="field">
         <label htmlFor="ap-title">Title</label>
         <DebouncedInput id="ap-title" value={ap.title ?? ''} placeholder={meta?.name} onChange={(v) => onChange({ title: v })} multiline={kind === 'key'} />
       </div>
       {kind === 'key' ? (
-        <div className="field row">
-          <div className="seg" role="radiogroup" aria-label="Title position">
-            {(['top', 'middle', 'bottom'] as const).map((a) => (
-              <button key={a} role="radio" aria-checked={(ap.titleAlign ?? 'bottom') === a} className={(ap.titleAlign ?? 'bottom') === a ? 'on' : ''} onClick={() => onChange({ titleAlign: a })}>
-                {a === 'top' ? 'Top' : a === 'middle' ? 'Middle' : 'Bottom'}
-              </button>
-            ))}
+        <div className="field">
+          <div className="row appearance-title-position">
+            <div className="seg" role="radiogroup" aria-label="Title position">
+              {(['top', 'middle', 'bottom'] as const).map((a) => (
+                <button key={a} role="radio" aria-checked={(ap.titleAlign ?? 'bottom') === a} className={(ap.titleAlign ?? 'bottom') === a ? 'on' : ''} onClick={() => onChange({ titleAlign: a })}>
+                  {a === 'top' ? 'Top' : a === 'middle' ? 'Middle' : 'Bottom'}
+                </button>
+              ))}
+            </div>
+            <label className="check compact">
+              <input type="checkbox" checked={ap.showTitle !== false} onChange={(e) => onChange({ showTitle: e.target.checked })} />
+              <span>Show title</span>
+            </label>
           </div>
-          <label className="mini">
-            Size
-            <input type="number" min={9} max={40} value={ap.titleSize ?? 15} onChange={(e) => onChange({ titleSize: Number(e.target.value) })} />
-          </label>
-          <label className="swatch" title="Title color">
-            <input type="color" value={ap.titleColor ?? '#ffffff'} onChange={(e) => onChange({ titleColor: e.target.value })} aria-label="Title color" />
-          </label>
-          <label className="check compact">
-            <input type="checkbox" checked={ap.showTitle !== false} onChange={(e) => onChange({ showTitle: e.target.checked })} />
-            <span>Show</span>
-          </label>
+          <div className="appearance-color-row">
+            <label className="mini">
+              Size
+              <input type="number" min={9} max={40} value={ap.titleSize ?? 15} onChange={(e) => onChange({ titleSize: Number(e.target.value) })} />
+            </label>
+            <label className="mini">
+              Title color
+              <span className="swatch">
+                <input type="color" value={ap.titleColor ?? '#ffffff'} onChange={(e) => onChange({ titleColor: e.target.value })} aria-label="Title color" />
+              </span>
+            </label>
+          </div>
         </div>
       ) : null}
       <div className="field">
-        <label>Icon and background</label>
-        <div className="row">
+        <span>Icon</span>
+        <div className="appearance-color-row">
           <button className="icon-well" onClick={() => setPicker(!picker)} aria-expanded={picker} aria-label="Change icon" title={icon ? 'Change icon' : 'Automatic icon (follows the action, e.g. muted). Click to pick your own.'}>
             <IconPreview icon={icon} fallback={meta?.icon} color={ap.iconColor} />
             {!icon ? <span className="auto-badge">Auto</span> : null}
           </button>
-          <label className="swatch" title="Icon color">
-            <input type="color" value={ap.iconColor ?? '#ffffff'} onChange={(e) => onChange({ iconColor: e.target.value })} aria-label="Icon color" />
+          <label className="mini">
+            Icon color
+            <span className="swatch">
+              <input type="color" value={ap.iconColor ?? '#ffffff'} onChange={(e) => onChange({ iconColor: e.target.value })} aria-label="Icon color" />
+            </span>
           </label>
-          <label className="swatch bg" title="Custom background color">
-            <input type="color" value={ap.bg ?? '#000000'} onChange={(e) => onChange({ bg: e.target.value })} aria-label="Background color" />
+        </div>
+      </div>
+      <div className="field">
+        <div className="appearance-background-heading">
+          <span>Background</span>
+          <label className="mini">
+            Custom color
+            <span className="swatch bg">
+              <input type="color" value={ap.bg ?? '#000000'} onChange={(e) => onChange({ bg: e.target.value })} aria-label="Background color" />
+            </span>
           </label>
-          <div className="bg-swatches" role="group" aria-label="Background presets">
-            {BG_PRESETS.map((c) => <button key={c} type="button" className={(ap.bg ?? '#000000').toLowerCase() === c ? 'on' : ''} style={{ background: c }} aria-label={`Background ${c}`} aria-pressed={(ap.bg ?? '#000000').toLowerCase() === c} onClick={() => onChange({ bg: c })} />)}
-          </div>
-          <ImageButton label="Background image" onImage={(id) => onChange({ bgImage: id })} />
+        </div>
+        <div className="bg-swatches" role="group" aria-label="Background presets">
+          {BG_PRESETS.map(({ name, color }) => {
+            const selected = (ap.bg ?? '#000000').toLowerCase() === color;
+            return (
+              <button key={color} type="button" className={selected ? 'on' : ''} style={{ background: color }} title={name}
+                aria-label={`${name} background`} aria-pressed={selected} onClick={() => onChange({ bg: color })}>
+                {selected && <Icon name="check" size={14} />}
+              </button>
+            );
+          })}
+        </div>
+        <div className="appearance-background-tools">
+          <ImageButton label="Background image" showLabel onImage={(id) => onChange({ bgImage: id })} />
           {ap.bgImage || ap.bg || ap.iconColor || icon ? (
             <button className="ghost" title="Back to the automatic icon and default colors" onClick={() => onChange({ bg: null, bgImage: null, iconColor: null, icon: null } as unknown as Partial<Appearance>)}>
               Reset
@@ -177,11 +214,11 @@ function IconPreview({ icon, fallback, color }: { icon?: IconRef; fallback?: str
   );
 }
 
-export function ImageButton({ label, onImage }: { label: string; onImage(id: string): void }) {
+export function ImageButton({ label, onImage, showLabel = false }: { label: string; onImage(id: string): void; showLabel?: boolean }) {
   return (
     <label className="ghost file-btn" title={label}>
       <Icon name="image-plus" size={16} />
-      <span className="sr">{label}</span>
+      <span className={showLabel ? undefined : 'sr'}>{label}</span>
       <input
         type="file"
         accept="image/png,image/jpeg"
@@ -207,65 +244,75 @@ export async function uploadImage(f: File): Promise<string | undefined> {
 let lucideIndex: Promise<Record<string, string[]>> | null = null;
 const EMOJI = '🎮 🎧 🎤 🎬 📷 💡 🔥 ⭐ ✅ ❌ 🚀 💬 📞 🔔 🔕 🔒 🔓 ⏯️ ⏭️ ⏮️ 🔊 🔇 ☕ 🍕 🎵 🎨 📝 📁 💻 🖥️ ⌨️ 🖱️ 🧠 🤖 🛠️ ⚙️ 🌙 ☀️ 🌈 ❤️ 👍 👋 😂 🎉 🏁'.split(' ');
 
-function IconPicker({ onPick, onClose, current, autoTitle = "Automatic (follows the action's state)" }: { onPick(i: IconRef | null): void; onClose(): void; current?: IconRef; autoTitle?: string }) {
+export function IconPicker({ onPick, onClose, current, autoTitle = "Automatic (follows the action's state)" }: { onPick(i: IconRef | null): void; onClose(): void; current?: IconRef; autoTitle?: string }) {
   const [tab, setTab] = useState<'icons' | 'emoji' | 'image'>('icons');
   const [q, setQ] = useState('');
   const [index, setIndex] = useState<Record<string, string[]> | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   // Braces matter: newer browsers return a Promise from scrollIntoView, and React would
   // treat any returned value as the effect's cleanup function.
   useEffect(() => { void box.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }, []);
   useEffect(() => {
-    lucideIndex ??= fetch('/api/lucide/index.json').then((r) => r.json());
-    void lucideIndex.then(setIndex);
+    let active = true;
+    lucideIndex ??= fetch('/api/lucide/index.json').then(r => {
+      if (!r.ok) throw new Error('Icon list unavailable');
+      return r.json();
+    }).catch(error => { lucideIndex = null; throw error; });
+    void lucideIndex.then(index => { if (active) setIndex(index); }, () => { if (active) setLoadError(true); });
+    return () => { active = false; };
   }, []);
   const names = useMemo(() => {
     if (!index) return [];
     const ql = q.trim().toLowerCase();
     const all = Object.keys(index);
     const hits = ql ? all.filter((n) => n.includes(ql) || index[n]!.some((t) => t.includes(ql))) : all;
-    return hits.slice(0, 240);
+    return hits.slice(0, ql ? 96 : 72);
   }, [index, q]);
   return (
-    <div ref={box} className="picker" role="dialog" aria-label="Choose an icon">
+    <div ref={box} className="picker" role="group" aria-label="Choose an icon" onKeyDown={e => {
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onClose(); }
+    }}>
       <div className="picker-head">
         <div className="seg small">
           {(['icons', 'emoji', 'image'] as const).map((t) => (
-            <button key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
+            <button type="button" key={t} className={tab === t ? 'on' : ''} onClick={() => setTab(t)}>
               {t === 'icons' ? 'Icons' : t === 'emoji' ? 'Emoji' : 'Image'}
             </button>
           ))}
         </div>
-        {tab === 'icons' ? <input className="search" autoFocus placeholder="Search 2,000+ icons" value={q} onChange={(e) => setQ(e.target.value)} /> : null}
-        <button className="ghost icon-btn" aria-label="Close" onClick={onClose}>
+        {tab === 'icons' ? <input className="search" aria-label="Search icons" autoFocus placeholder="Search icons…" value={q}
+          onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }} onChange={(e) => setQ(e.target.value)} /> : null}
+        <button type="button" className="ghost icon-btn" aria-label="Close icon picker" onClick={onClose}>
           <Icon name="x" size={16} />
         </button>
       </div>
       {tab === 'icons' ? (
         <div className="picker-grid">
-          <button title={autoTitle} className={!current ? 'on' : ''} onClick={() => onPick(null)}>
+          <button type="button" title={autoTitle} className={!current ? 'on' : ''} onClick={() => onPick(null)}>
             <span className="auto-cell">Auto</span>
           </button>
           {names.map((n) => (
-            <button key={n} title={n} className={current?.kind === 'lucide' && current.name === n ? 'on' : ''} onClick={() => onPick({ kind: 'lucide', name: n })}>
+            <button type="button" key={n} title={n} className={current?.kind === 'lucide' && current.name === n ? 'on' : ''} onClick={() => onPick({ kind: 'lucide', name: n })}>
               <Icon name={n} size={22} />
             </button>
           ))}
-          <button title="No icon" onClick={() => onPick({ kind: 'none' })}>
+          <button type="button" title="No icon" onClick={() => onPick({ kind: 'none' })}>
             <Icon name="ban" size={22} />
           </button>
+          {loadError && <p className="warn" role="status">Couldn’t load icons. Close the picker and try again.</p>}
         </div>
       ) : tab === 'emoji' ? (
         <div className="picker-grid emoji">
           {EMOJI.map((e) => (
-            <button key={e} onClick={() => onPick({ kind: 'emoji', char: e })}>
+            <button type="button" key={e} onClick={() => onPick({ kind: 'emoji', char: e })}>
               {e}
             </button>
           ))}
         </div>
       ) : (
         <div className="picker-upload">
-          <p>PNG, JPEG, GIF (first frame), WebP or SVG. Square images look best; they're scaled to fit the key.</p>
+          <p>Choose a PNG or JPEG. Square images fit the key best.</p>
           <label className="secondary file-btn wide">
             <Icon name="upload" size={16} /> Choose an image
             <input

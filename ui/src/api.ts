@@ -223,6 +223,7 @@ export function toast(msg: string, kind: Toast['kind'] = 'info', action?: ToastA
   toasts = [...toasts.slice(-3), { id, msg, kind, action }];
   emitToasts();
   setTimeout(() => dismissToast(id), kind === 'error' ? 5000 : action ? 6000 : 2600);
+  return id;
 }
 /** Runs the newest toast's action (e.g. Undo). Returns false when there is none. */
 export function runLatestToastAction(): boolean {

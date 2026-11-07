@@ -132,7 +132,7 @@ export function SettingsView() {
       <main id="sv-panel" className="sv-panel" role="tabpanel" aria-labelledby={`sv-tab-${tab}`} key={tab}>
         {tab === 'general' && <General state={state} ns={ns} />}
         {tab === 'devices' && <Devices state={state} ns={ns} />}
-        {tab === 'permissions' && <Permissions state={state} />}
+        {tab === 'permissions' && <Permissions state={state} onOpenGeneral={() => setTab('general', true)} />}
         {tab === 'ai' && <AI ns={ns} connected={!!state} />}
         {tab === 'updates' && <Updates ns={ns} />}
         {tab === 'about' && <About ns={ns} />}
@@ -522,7 +522,7 @@ function useWindowFocus() {
   return focused;
 }
 
-function Permissions({ state }: { state: AppState | null }) {
+function Permissions({ state, onOpenGeneral }: { state: AppState | null; onOpenGeneral(): void }) {
   const focused = useWindowFocus();
   const [checking, setChecking] = useState(false);
   const asked = useRef(false); // see openPane below
@@ -548,13 +548,21 @@ function Permissions({ state }: { state: AppState | null }) {
     if (r && r.length && r.every((p) => p.ok)) toast('StreamDeckPlus has the access it needs.');
   };
 
+  const simulated = state.devices.length > 0 && state.devices.every(d => d.kind === 'sim');
   if (!state.platform.canExecute || !perms.length) {
     return (
       <Pane title="Permissions">
         <div className="sv-empty">
           <Icon name="shield-check" size={28} />
-          <p className="sv-empty-title">Nothing to allow here.</p>
-          <p className="sv-muted">Keys that control your Mac aren't available on this computer.</p>
+          <p className="sv-empty-title">{simulated ? 'The simulator needs no Mac access.' : !state.platform.canExecute ? 'Mac actions are off.' : 'Checking Mac access…'}</p>
+          <p className="sv-muted">{simulated
+            ? 'You can test keys in the simulator. Connect a Stream Deck to use them on your Mac.'
+            : !state.platform.canExecute
+              ? 'Turn on Perform Mac actions in General to configure access.'
+              : 'Check again if the permission list does not appear.'}</p>
+          {!simulated && (!state.platform.canExecute
+            ? <button className="sv-btn" onClick={onOpenGeneral}>Open General</button>
+            : <button className="sv-btn" disabled={checking} onClick={checkAgain}>{checking ? 'Checking…' : 'Check Again'}</button>)}
         </div>
       </Pane>
     );
@@ -589,7 +597,7 @@ function Permissions({ state }: { state: AppState | null }) {
           >
             {p.ok
               ? <span className="sv-status ok">Allowed</span>
-              : <button className="sv-btn" onClick={() => void openPane(p.id)}>Open System Settings</button>}
+              : <button className="sv-btn" aria-label={`Open ${p.label} in System Settings`} onClick={() => void openPane(p.id)}>Open System Settings</button>}
           </Row>
         ))}
       </Group>
@@ -674,7 +682,7 @@ function AI({ ns, connected }: { ns: NativeState | null; connected: boolean }) {
       id: 'auto',
       label: 'Automatic',
       icon: <span className="sv-perm-icon unk" aria-hidden><Icon name="wand-sparkles" size={13} /></span>,
-      help: !status ? 'Uses Claude Code, then Codex, then your API key.'
+      help: !status || pref !== 'auto' ? 'Uses Claude Code, then Codex, then your API key.'
         : active ? <>Uses Claude Code, then Codex, then your API key. Now using <strong>{active.name}</strong>.</>
         : 'Uses Claude Code, then Codex, then your API key. None is ready yet.',
     },

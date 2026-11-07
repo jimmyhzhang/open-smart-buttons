@@ -16,6 +16,7 @@ import type { Store } from './store.ts';
 import { StateHub } from './state-hub.ts';
 import { activeRule, stateKey } from '../shared/state-rules.ts';
 import { externalActionMessage, isLocalAction } from '../shared/local-action-policy.ts';
+import { AgentTasks } from './agent-tasks.ts';
 
 const LONG_PRESS_MS = 500;
 
@@ -61,6 +62,13 @@ export class Engine extends EventEmitter<EngineEvents> {
   private readonly simulatorRuntime = new Map<string, Record<string, any>>();
   /** Computer state read for state rules, shared by every device. */
   readonly states = new StateHub(() => this.platform);
+  readonly agentTasks = new AgentTasks(task => {
+    const state = this.runtime.get(task.actionId);
+    if (state) state.agentStatus = task.status;
+    this.sessions.get(task.deviceId)?.renderAll(true);
+    this.emit('state');
+    if (task.status !== 'running') this.log(task.status === 'failed' ? 'warn' : 'info', `${task.tool === 'claude' ? 'Claude Code' : 'Codex'} task ${task.status}.`);
+  });
   private readonly simulatorStates = new StateHub(() => this.simulatorPlatform);
 
   constructor(store: Store, manager: DeviceManager, localOnly = false, forceDryRun = false, isolateSimulators = localOnly) {
@@ -82,6 +90,7 @@ export class Engine extends EventEmitter<EngineEvents> {
   }
 
   setExecute(execute: boolean): void {
+    if (!execute) this.agentTasks.close();
     this.store.config.settings.executeActions = execute;
     this.platform = this.makePlatform(execute);
     this.states.reset();
@@ -174,6 +183,7 @@ export class Engine extends EventEmitter<EngineEvents> {
     const s = this.sessions.get(dev.id);
     s?.dispose();
     this.sessions.delete(dev.id);
+    this.agentTasks.disconnect(dev.id);
     this.log('info', `Disconnected: ${dev.model.name} ${dev.serial}`);
     this.emit('state');
   }
@@ -183,6 +193,7 @@ export class Engine extends EventEmitter<EngineEvents> {
     if (save) this.store.save();
     const retained = new Set<string>();
     someSavedAction(this.store.config.profiles, (inst) => { retained.add(inst.id); return false; });
+    this.agentTasks.retain(retained);
     for (const runtime of [this.runtime, this.simulatorRuntime]) {
       for (const id of runtime.keys()) if (!retained.has(id)) runtime.delete(id);
     }
@@ -458,6 +469,13 @@ export class Session {
       platform,
       session: this.api(),
       controller,
+      runAgent: input => {
+        if (!platform.canExecute || platform !== self.platform || !alive()) throw new Error('AI tasks cannot run in this context.');
+        return self.engine.agentTasks.start({
+          ...input, deviceId: self.dev.id, actionId: inst.id,
+          title: inst.appearance.title || ACTION_MAP.get(inst.type)?.meta.name || 'AI prompt',
+        });
+      },
       refreshVolumeKeys: () => self.engine.refreshVolumeKeys(true, self.stateHub),
       refresh: () => {
         if (!alive()) return;

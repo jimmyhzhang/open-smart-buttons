@@ -33,6 +33,9 @@ function validate(meta: ActionMeta, settings: Record<string, unknown>, controlle
     if (field.required && (typeof settings[field.key] !== 'string' || !String(settings[field.key]).trim())) errors.push(`${field.label} is required`);
   }
   if (meta.type.startsWith('agent.')) {
+    if (settings.execution !== undefined && (typeof settings.execution !== 'string' || !['background', 'terminal'].includes(settings.execution))) errors.push('Choose Background or Terminal');
+    if (settings.execution === 'background' && (typeof settings.prompt !== 'string' || !settings.prompt.trim())) errors.push('Prompt is required');
+    if (settings.execution === 'background' && settings.mode !== 'new') errors.push('Background prompts start a new session');
     if (!['new', 'continue'].includes(String(settings.mode))) errors.push('Choose a valid session mode');
     if (settings.mode === 'continue' && String(settings.prompt || '').trim()) errors.push('Continue opens the last session without a new starting task');
   }
@@ -53,6 +56,10 @@ function validate(meta: ActionMeta, settings: Record<string, unknown>, controlle
   if (meta.type === 'system.text' && !String(settings.text || '').trim()) errors.push('Text is required');
   if (meta.type === 'system.command' && controller === 'key' && !String(settings.command || '').trim()) errors.push('Command is required');
   if (meta.type === 'system.hotkey' && controller === 'key' && !(settings.hotkey as { key?: string } | null)?.key) errors.push('Record a shortcut first');
+  if (controller === 'dial' && meta.type === 'system.command' &&
+    !['left', 'right', 'press'].some(key => String(settings[key] || '').trim())) errors.push('Add a command for at least one dial control');
+  if (controller === 'dial' && meta.type === 'system.hotkey' &&
+    !['left', 'right', 'press'].some(key => (settings[key] as Hotkey | null)?.key)) errors.push('Record a shortcut for at least one dial control');
   if (meta.type === 'system.volume' && controller === 'key') {
     if (settings.mode !== undefined && !['mute', 'up', 'down'].includes(String(settings.mode))) errors.push('Choose a volume action');
     if (settings.mutedIconWhenSilent !== undefined && typeof settings.mutedIconWhenSilent !== 'boolean') errors.push('Show muted icon when silent must be on or off');
@@ -94,7 +101,7 @@ export function actionSummary(meta: ActionMeta, settings: Record<string, unknown
     const operation = settings.mode === 'down' ? 'Lower the volume' : settings.mode === 'up' ? 'Raise the volume' : 'Toggle mute';
     return settings.mutedIconWhenSilent === true ? `${operation}. Show the muted icon at zero volume or while muted.` : operation;
   }
-  if (meta.type.startsWith('agent.')) return `${settings.mode === 'continue' ? 'Continue' : 'Open'} ${meta.name} in ${text('cwd') || 'your project'}${text('prompt') ? ` · ${text('prompt').slice(0, 110)}` : ''}`;
+  if (meta.type.startsWith('agent.')) return `${settings.execution === 'background' ? `Run ${meta.name} in the background` : `${settings.mode === 'continue' ? 'Continue' : 'Open'} ${meta.name} in Terminal`} · ${text('cwd') || 'Choose a project'}${text('prompt') ? ` · ${text('prompt').slice(0, 110)}` : ''}`;
   if (meta.type === 'system.script') return `Run ${text('path') || 'your executable script'}${text('arg1') ? ' with saved arguments' : ''}`;
   if (meta.type === 'system.shortcut') return `Run the “${text('name') || 'chosen'}” shortcut`;
   if (['system.raycast', 'system.asyar'].includes(meta.type)) return text('url') || 'Open the command link you copy from the launcher';

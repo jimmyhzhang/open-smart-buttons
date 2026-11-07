@@ -225,6 +225,7 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
       config: store.config,
       catalog: CATALOG,
       devices: engine.summaries(),
+      agentTasks: engine.agentTasks.list(),
       discovered: manager.list().map((d) => ({
         path: d.info.path,
         kind: d.info.kind,
@@ -240,12 +241,15 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
   }
 
   let stateTimer: ReturnType<typeof setTimeout> | null = null;
+  const flushState = () => {
+    if (!stateTimer) return;
+    clearTimeout(stateTimer);
+    stateTimer = null;
+    broadcast({ type: 'state', state: appState() });
+  };
   engine.on('state', () => {
     if (stateTimer) return;
-    stateTimer = setTimeout(() => {
-      stateTimer = null;
-      broadcast({ type: 'state', state: appState() });
-    }, 30);
+    stateTimer = setTimeout(flushState, 30);
   });
 
   // ---- WebSocket ----------------------------------------------------------------------------------
@@ -325,6 +329,9 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
       inFlight++;
       try {
         const result = await fn(msg.params ?? {});
+        // Configuration saves must reach subscribers before their acknowledgment. Inputs keep
+        // the usual coalescing so rapid dial turns do not broadcast the full configuration.
+        if (msg.method !== 'devices.virtualInput') flushState();
         send(ws, { id: msg.id, result: result ?? null });
       } catch (e) {
         send(ws, { id: msg.id, error: (e as Error).message });
@@ -428,6 +435,7 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
       let saved = true;
       try {
         buttonAgent.close();
+        engine.agentTasks.close();
         store.flush();
       } catch (error) {
         console.error('Could not save the current session:', (error as Error).message);

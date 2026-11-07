@@ -70,6 +70,14 @@ test('setup validation catches missing required values and invalid deep links/se
   assert.deepEqual(validate('system.asyar', { url: 'asyar://extensions/author/extension/command' }), []);
   assert.ok(validate('system.shortcut', { name: '--help' }).length);
   assert.equal(validateActionSetup(ACTION_MAP.get('system.command')!.meta, { left: 'fixture' }, 'dial').length, 0, 'key-only command requirement does not block a dial');
+  for (const type of ['system.command', 'system.hotkey']) {
+    const meta = ACTION_MAP.get(type)!.meta;
+    assert.ok(validateActionSetup(meta, { ...meta.defaults }, 'dial').length, `${type} needs a dial operation`);
+    for (const direction of ['left', 'right', 'press']) {
+      const value = type === 'system.hotkey' ? { key: 'a', cmd: true } : 'printf test';
+      assert.deepEqual(validateActionSetup(meta, { ...meta.defaults, [direction]: value }, 'dial'), []);
+    }
+  }
 });
 
 test('invalid configured assignments preserve the existing button and folder tree', async (t) => {
@@ -113,6 +121,37 @@ test('valid configured assignment saves all settings/look together and does not 
   assert.equal(observed.length, 1);
   assert.deepEqual(observed[0], session.page()!.keys[0]);
   assert.deepEqual(platform.calls, [], 'saving a button never launches the agent');
+});
+
+test('saved background prompts run only on an executing device and simulator presses remain dry', async t => {
+  const { engine, platform, assign, press, settle, projectDir, session, rpc } = await boot(t);
+  const tasks: unknown[] = [];
+  t.mock.method(engine.agentTasks, 'start', (input: Parameters<typeof engine.agentTasks.start>[0]) => {
+    tasks.push(input);
+    return { id: 'task', ...input, status: 'running', startedAt: Date.now() };
+  });
+  const settings = { cwd: projectDir, mode: 'new', execution: 'background', prompt: '$review\nCheck this project' };
+  await assign('agent.codex', settings);
+  assert.equal(tasks.length, 0, 'save does not perform inference');
+  press(0);
+  await settle();
+  assert.equal(tasks.length, 0, 'dry runs never start a background agent');
+  Object.defineProperty(platform, 'canExecute', { value: true });
+  press(0);
+  await settle();
+  assert.equal(tasks.length, 1);
+  assert.deepEqual(tasks[0], { tool: 'codex', cwd: projectDir, prompt: settings.prompt, deviceId: session.dev.id, actionId: session.page()!.keys[0]!.id, title: 'Codex CLI' });
+  Object.defineProperty(engine, 'isolateSimulators', { value: true });
+  press(0);
+  await settle();
+  assert.equal(tasks.length, 1, 'isolated simulator cannot execute even when Mac actions are enabled');
+  const closed = t.mock.method(engine.agentTasks, 'close');
+  engine.setExecute(false);
+  assert.equal(closed.mock.callCount(), 1, 'pausing Mac actions stops background tasks');
+  await assert.rejects(async () => rpc['agentTasks.cancel']!({ id: 'missing' }), /no longer available/);
+  for (const patch of [{ prompt: '' }, { prompt: 123 }, { mode: 'continue' }, { execution: 'other' }, { execution: ['background'] }]) {
+    await assert.rejects(async () => assign('agent.codex', { ...settings, ...patch }));
+  }
 });
 
 test('replacing a folder requires a flag and only then removes its old contents', async (t) => {

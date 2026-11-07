@@ -34,7 +34,7 @@ export function Drawer() {
       <div className="drawer-bar">
         <button className="ghost" onClick={() => setOpen(!open)} aria-expanded={open}>
           <Icon name={open ? 'chevron-down' : 'chevron-up'} size={14} />
-          {logs.length ? logs[logs.length - 1]!.msg : 'Activity'}
+          {isNative || !logs.length ? 'Activity' : logs[logs.length - 1]!.msg}
         </button>
         {errors ? <span className="err-count">{errors} errors</span> : null}
         <div className="spacer" />

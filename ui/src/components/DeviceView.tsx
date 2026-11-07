@@ -138,7 +138,7 @@ export function DeviceView(p: Props) {
   const isSel = (s: Slot) => p.selected?.kind === s.kind && p.selected.index === s.index;
 
   return (
-    <div className="device-wrap">
+    <div className="device-wrap" style={{ '--deck-chassis-width': `${gridW + 60}px` } as CSSProperties}>
       <div
         className={`device ${p.mode}`}
         style={{ '--grid-w': `${gridW}px` } as CSSProperties}
@@ -296,31 +296,8 @@ function TouchStrip(props: {
 }) {
   const { device, frames } = props;
   const lcd = device.lcd!;
-  const canvas = useRef<HTMLCanvasElement>(null);
   const gesture = useRef<{ x: number; y: number; x2: number; y2: number; t: number; long: boolean; timer: number } | null>(null);
   const [ripple, setRipple] = useState<{ x: number; y: number; k: number } | null>(null);
-
-  useEffect(() => {
-    const c = canvas.current;
-    if (!c || !frames) return;
-    const ctx = c.getContext('2d')!;
-    let cancelled = false;
-    void (async () => {
-      const imgs = await Promise.all(
-        frames.lcd.map(async (r) => {
-          const blob = await (await fetch(`data:image/jpeg;base64,${r.jpeg}`)).blob();
-          return { r, bmp: await createImageBitmap(blob) };
-        }),
-      );
-      if (cancelled) return;
-      ctx.fillStyle = '#000';
-      ctx.fillRect(0, 0, lcd.width, lcd.height);
-      for (const { r, bmp } of imgs) ctx.drawImage(bmp, r.x, r.y, r.width, r.height);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [frames?.rev, frames, lcd.width, lcd.height]);
 
   const toLcd = (e: React.PointerEvent) => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -367,7 +344,12 @@ function TouchStrip(props: {
         else void send(device.id, encodeTouchInput('tap', g.x, g.y));
       }}
     >
-      <canvas ref={canvas} width={lcd.width} height={lcd.height} />
+      {frames?.lcd.map(r => (
+        <img key={`${r.x},${r.y},${r.width},${r.height}`} alt="" draggable={false}
+          src={`data:image/jpeg;base64,${r.jpeg}`}
+          style={{ left: `${r.x / lcd.width * 100}%`, top: `${r.y / lcd.height * 100}%`,
+            width: `${r.width / lcd.width * 100}%`, height: `${r.height / lcd.height * 100}%` }} />
+      ))}
       {ripple ? <span key={ripple.k} className="ripple" style={{ left: ripple.x, top: ripple.y }} /> : null}
       {props.mode === 'edit'
         ? Array.from({ length: device.encoders }, (_, i) => {

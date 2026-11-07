@@ -54,12 +54,20 @@ If you're signed in to [Claude Code](https://claude.com/claude-code) or [Codex](
 - In the app, choose the engine and check sign-in in **Settings ▸ AI**. An optional Anthropic API key is encrypted with your Mac's Keychain and never shown to the editor.
 - From Terminal, set `STREAMDECK_AI` to `claude`, `codex` or `api` to pick one. For the API key, launch with `ANTHROPIC_API_KEY` and `STREAMDECK_CLAUDE_MODEL` in the environment. The key is never passed to the CLIs or to your commands.
 
+## Prompt buttons
+
+Choose **Set up manually → Run prompt with Claude** or **Run prompt with Codex**, enter a prompt, and choose the project folder. You can also ask **Create with AI** to make this button. Saving never runs the prompt; pressing the key does. The executor on the button is independent of the AI engine used to design it.
+
+**Background** runs with your CLI sign-in and project instructions, shows progress and the final response in the key workspace, and offers **Stop task**. Repeated presses while running reuse that task. Include `$skill-name` for Codex or start with `/skill-name` for Claude Code to invoke a skill installed for that project or user. **Terminal** opens an interactive session when a task needs approvals or follow-up. Background execution keeps normal CLI permissions; Codex uses its workspace sandbox. A permission denial is reported as a failure with guidance to use Terminal.
+
+Tasks stop if you disconnect the device, remove the action, pause Mac actions, or quit the service. The last 20 task results are held in memory until the service quits. Simulator tests never launch an agent.
+
 ## Network and data
 
-The editor and device service communicate over loopback (`127.0.0.1`). StreamDeckPlus makes only two kinds of outbound request:
+The editor and device service communicate over loopback (`127.0.0.1`). Outbound requests come from these explicit actions:
 
 - **AI design**, only when you submit one: Claude Code (Anthropic) or Codex (OpenAI) through your own sign-in, or `api.anthropic.com` with an API key over a fixed TLS destination that rejects redirects.
-- **Your actions.** Keys you set up can open websites, apps and links, and run commands, scripts and Shortcuts. They run only when you press them, with your user account's permissions.
+- **Your actions.** Keys you set up can open websites, apps and links, and run commands, scripts, Shortcuts and AI prompts. Coding agents load their own project settings, skills and configured tools. They run only when you press them, with your user account's permissions.
 - **Updates** (the project's GitHub Releases), only in the Mac app, only when you click **Check for Updates** or turn on **Check automatically** (off by default). Updates are signature-checked before they install.
 
 Commands and scripts run in your login shell's `PATH`, so tools from Homebrew or `~/.local/bin` work from the Mac app too. To allow only built-in deck, volume and Mac controls, start the Terminal version with `STREAMDECK_LOCAL_ONLY=1`.

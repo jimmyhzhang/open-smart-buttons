@@ -49,8 +49,8 @@ function keyFromEvent(e: KeyboardEvent): string | null {
   return map[c] ?? null;
 }
 
-export function HotkeyInput({ value, onChange, id, label = 'Shortcut', invalid, describedBy, startRecording }: { value: Hotkey | null; onChange(h: Hotkey | null): void; id?: string; label?: string; invalid?: boolean; describedBy?: string; startRecording?: boolean }) {
-  const [rec, setRec] = useState(!!startRecording && !value);
+export function HotkeyInput({ value, onChange, id, label = 'Shortcut', invalid, describedBy }: { value: Hotkey | null; onChange(h: Hotkey | null): void; id?: string; label?: string; invalid?: boolean; describedBy?: string }) {
+  const [rec, setRec] = useState(false);
   useEffect(() => {
     if (!rec) return;
     const h = (e: KeyboardEvent) => {
@@ -102,20 +102,19 @@ export function FieldsForm(props: {
   errorId?: string;
   suggestions?: { field: string; values: readonly string[] };
   preserveStartingTask?: boolean;
-  recordShortcut?: boolean;
 }) {
   const fields = props.meta.fields.filter((f) => (!f.controllers || f.controllers.includes(props.controller)) && !(props.meta.type.startsWith('agent.') && props.settings.mode === 'continue' && f.key === 'prompt'));
   if (!fields.length) return null;
   return (
     <div className="fields">
       {fields.map((f) => (
-        <FieldRow key={f.key} f={f} value={props.settings[f.key]} onChange={(v) => props.onChange({ [f.key]: v, ...(!props.preserveStartingTask && props.meta.type.startsWith('agent.') && f.key === 'mode' && v === 'continue' ? { prompt: '' } : {}) })} ctx={props.ctx} immediate={props.immediate} invalid={props.invalidFields?.includes(f.key)} errorId={props.errorId} suggestions={props.suggestions?.field === f.key ? props.suggestions.values : undefined} startRecording={props.recordShortcut && f.key === 'hotkey'} />
+        <FieldRow key={f.key} f={f} value={props.settings[f.key]} onChange={(v) => props.onChange({ [f.key]: v, ...(!props.preserveStartingTask && props.meta.type.startsWith('agent.') && f.key === 'mode' && v === 'continue' ? { prompt: '' } : {}) })} ctx={props.ctx} immediate={props.immediate} invalid={props.invalidFields?.includes(f.key)} errorId={props.errorId} suggestions={props.suggestions?.field === f.key ? props.suggestions.values : undefined} />
       ))}
     </div>
   );
 }
 
-function FieldRow({ f, value, onChange, ctx, immediate, invalid, errorId, suggestions, startRecording }: { f: Field; value: any; onChange(v: unknown): void; ctx: FieldCtx; immediate?: boolean; invalid?: boolean; errorId?: string; suggestions?: readonly string[]; startRecording?: boolean }) {
+function FieldRow({ f, value, onChange, ctx, immediate, invalid, errorId, suggestions }: { f: Field; value: any; onChange(v: unknown): void; ctx: FieldCtx; immediate?: boolean; invalid?: boolean; errorId?: string; suggestions?: readonly string[] }) {
   const id = `f-${f.key}-${useId()}`;
   const describedBy = [f.help ? `${id}-help` : '', invalid ? errorId : ''].filter(Boolean).join(' ') || undefined;
   const attributes = { 'data-field-key': f.key, 'aria-required': f.required, 'aria-invalid': invalid || undefined, 'aria-describedby': describedBy };
@@ -126,14 +125,14 @@ function FieldRow({ f, value, onChange, ctx, immediate, invalid, errorId, sugges
   switch (f.type) {
     case 'text':
       control = immediate ? <input id={id} {...attributes} list={suggestions?.length ? `${id}-suggestions` : f.suggest === 'apps' ? 'installed-apps' : undefined} autoComplete="off" spellCheck={false} value={value ?? ''} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} /> : <DebouncedInput id={id} list={f.suggest === 'apps' ? 'installed-apps' : undefined} value={value ?? ''} placeholder={f.placeholder} onChange={onChange} />;
-      if (f.browse && canPick) control = <div className="path-field">{control}<button type="button" className="secondary browse-btn" disabled={picking} aria-label={`Browse for ${f.label.toLowerCase()}`} onClick={async () => {
+      if (f.browse) control = <div className="path-field">{control}{canPick && <button type="button" className="secondary browse-btn" disabled={picking} aria-label={`Browse for ${f.label.toLowerCase()}`} onClick={async () => {
         setPicking(true);
         try {
           const picked = await client.rpc<string | null>('host.choose', { kind: f.browse, prompt: `Choose ${f.browse === 'app' ? 'an app' : f.browse === 'folder' ? 'a folder' : 'a file'} for “${f.label}”` });
           if (picked) onChange(picked);
         } catch (e) { toast((e as Error).message, 'error'); }
         finally { setPicking(false); }
-      }}><Icon name={f.browse === 'app' ? 'app-window' : f.browse === 'folder' ? 'folder-open' : 'file'} size={14} />{picking ? 'Choosing…' : 'Browse…'}</button></div>;
+      }}><Icon name={f.browse === 'app' ? 'app-window' : f.browse === 'folder' ? 'folder-open' : 'file'} size={14} />{picking ? 'Choosing…' : 'Browse…'}</button>}</div>;
       break;
     case 'textarea':
       control = immediate ? <textarea id={id} {...attributes} value={value ?? ''} placeholder={f.placeholder} onChange={(e) => onChange(e.target.value)} rows={4} /> : <DebouncedInput id={id} value={value ?? ''} placeholder={f.placeholder} onChange={onChange} multiline />;
@@ -168,7 +167,7 @@ function FieldRow({ f, value, onChange, ctx, immediate, invalid, errorId, sugges
         </label>
       );
     case 'hotkey':
-      control = <HotkeyInput id={id} label={f.label} invalid={invalid} describedBy={describedBy} value={value ?? null} onChange={onChange} startRecording={startRecording} />;
+      control = <HotkeyInput id={id} label={f.label} invalid={invalid} describedBy={describedBy} value={value ?? null} onChange={onChange} />;
       break;
     case 'page':
       control = (
@@ -209,16 +208,28 @@ function FieldRow({ f, value, onChange, ctx, immediate, invalid, errorId, sugges
 }
 
 function ProfileSelect({ id, value, onChange, ctx }: { id: string; value: any; onChange(v: unknown): void; ctx: FieldCtx }) {
-  const profiles = ctx.profiles;
+  const [creating, setCreating] = useState(false);
+  const profiles = ctx.profiles.filter(p => p.modelId === ctx.profile.modelId && p.id !== ctx.profile.id);
+  const create = async () => {
+    if (creating) return;
+    setCreating(true);
+    try {
+      const profileId = await client.rpc<string>('profiles.create', { name: 'Untitled Profile', modelId: ctx.profile.modelId });
+      onChange(profileId);
+      requestAnimationFrame(() => document.getElementById(id)?.focus({ preventScroll: true }));
+    } catch (error) { toast((error as Error).message, 'error'); }
+    finally { setCreating(false); }
+  };
   return (
-    <select id={id} value={value ?? ''} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Choose a profile</option>
-      {(profiles ?? []).filter((p) => p.modelId === ctx.profile.modelId && p.id !== ctx.profile.id).map((p) => (
-        <option key={p.id} value={p.id}>
-          {p.name}
-        </option>
-      ))}
-    </select>
+    <>
+      <select id={id} value={value ?? ''} disabled={!profiles.length} onChange={(e) => onChange(e.target.value)}>
+        <option value="">{profiles.length ? 'Choose a profile' : 'Create another profile to switch to'}</option>
+        {profiles.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+      </select>
+      {!profiles.length && <button type="button" className="secondary" disabled={creating} onClick={() => void create()}>
+        <Icon name="plus" size={14} />{creating ? 'Creating…' : 'Create a profile'}
+      </button>}
+    </>
   );
 }
 

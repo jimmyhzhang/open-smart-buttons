@@ -143,16 +143,18 @@ export function TopBar(p: Props) {
 
   return (
     <header className="topbar">
-      <div className="brand" aria-label="StreamDeckPlus">
-        <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden>
-          <rect x="3" y="5" width="26" height="22" rx="5" fill="currentColor" opacity=".9" />
-          <rect x="7" y="9" width="7" height="6" rx="1.5" fill="var(--signal)" />
-          <rect x="18" y="9" width="7" height="6" rx="1.5" fill="var(--bg)" />
-          <circle cx="10" cy="21" r="2.5" fill="var(--bg)" />
-          <circle cx="22" cy="21" r="2.5" fill="var(--bg)" />
-        </svg>
-        <span>StreamDeckPlus</span>
-      </div>
+      {!isNative && (
+        <div className="brand" aria-label="StreamDeckPlus">
+          <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden>
+            <rect x="3" y="5" width="26" height="22" rx="5" fill="currentColor" opacity=".9" />
+            <rect x="7" y="9" width="7" height="6" rx="1.5" fill="var(--signal)" />
+            <rect x="18" y="9" width="7" height="6" rx="1.5" fill="var(--bg)" />
+            <circle cx="10" cy="21" r="2.5" fill="var(--bg)" />
+            <circle cx="22" cy="21" r="2.5" fill="var(--bg)" />
+          </svg>
+          <span>StreamDeckPlus</span>
+        </div>
+      )}
 
       <div className="menu-anchor">
         <button className="chip" onClick={() => setMenu(menu === 'device' ? null : 'device')} aria-expanded={menu === 'device'}>
@@ -193,8 +195,8 @@ export function TopBar(p: Props) {
       {!p.connected && !isNative ? <span className="offline" role="status">Reconnecting…</span> : null}
       {!(p.device?.canExecute ?? p.state.platform.canExecute) ? (
         isNative ? (
-          <span className="dry" title={p.device?.kind === 'sim' ? 'Simulators never control your Mac. Keys show what they would do.' : 'Keys show what they would do. Turn on Perform Mac actions in Settings.'}>
-            Mac actions off
+          <span className={p.device?.kind === 'sim' ? 'dry dry-sim' : 'dry'} title={p.device?.kind === 'sim' ? 'Simulators never control your Mac. Keys show what they would do.' : 'Keys show what they would do. Turn on Perform Mac actions in Settings.'}>
+            {p.device?.kind === 'sim' ? 'Dry run' : 'Mac actions off'}
           </span>
         ) : (
           <span className="dry" title={p.device?.kind === 'sim' ? 'Simulators always use Dry run.' : 'Actions are logged instead of performed. Change this in Settings.'}>
@@ -230,6 +232,10 @@ function DeviceMenu(p: Props & Actions & { close(): void }) {
   const d = p.device;
   const { connecting, reconnect } = p;
   const sleepOpts = [0, 60, 300, 900, 1800, 3600];
+  const simulate = async (modelId: 'plus' | 'neo') => {
+    const id = await act<string>('sim.add', { modelId });
+    if (id) { p.selectDevice(id); p.close(); }
+  };
   return (
     <div className="menu device-menu">
       <h4>Connected</h4>
@@ -259,7 +265,7 @@ function DeviceMenu(p: Props & Actions & { close(): void }) {
             ) : null}
           </div>
         ))}
-      {!p.state.platform.hidAvailable ? <p className="muted small pad-x">Your deck isn't available here. Quit other apps that use it, then choose Reconnect.</p> : null}
+      {p.state.platform.hidError ? <p className="muted small pad-x">USB support couldn’t start. Restart StreamDeckPlus to try again.</p> : null}
       {connecting && <p role="status" className="muted small pad-x">Reconnecting your device…</p>}
       {d && <div className="menu-row connection-controls">
             {d.kind === 'sim' ? (
@@ -277,10 +283,10 @@ function DeviceMenu(p: Props & Actions & { close(): void }) {
       </div>}
       <details className="device-tools"><summary>Simulator and diagnostics</summary>
       <div className="menu-row">
-        <button className="secondary" onClick={() => act('sim.add', { modelId: 'plus' }).then((id) => id && p.selectDevice(id))}>
+        <button className="secondary" onClick={() => void simulate('plus')}>
           <Icon name="plus" size={14} /> Simulate +
         </button>
-        <button className="secondary" onClick={() => act('sim.add', { modelId: 'neo' }).then((id) => id && p.selectDevice(id))}>
+        <button className="secondary" onClick={() => void simulate('neo')}>
           <Icon name="plus" size={14} /> Simulate Neo
         </button>
         <button className="ghost" onClick={() => act('devices.scan').then(() => toast('Scanned for USB devices'))}>
@@ -345,7 +351,10 @@ function ProfileMenu(p: Props & Actions & { close(): void }) {
     <div className="menu">
       <h4>Profiles</h4>
       {mine.map((x) => (
-        <button key={x.id} className={`menu-item ${x.id === profile.id ? 'on' : ''}`} onClick={() => d && act('session.setProfile', { deviceId: d.id, profileId: x.id })}>
+        <button key={x.id} className={`menu-item ${x.id === profile.id ? 'on' : ''}`} onClick={() => {
+          p.close();
+          if (d && x.id !== profile.id) void act('session.setProfile', { deviceId: d.id, profileId: x.id });
+        }}>
           <span className="grow">{x.name}</span>
           <span className="muted small">{x.pageOrder.length} {x.pageOrder.length === 1 ? 'page' : 'pages'}</span>
           {x.id === profile.id ? <Icon name="check" size={14} /> : null}

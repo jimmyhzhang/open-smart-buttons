@@ -37,6 +37,8 @@
 }
 
 .action-picker .picker-search input::placeholder { color: var(--muted); }
+html.electron .action-picker .picker-search input:focus,
+html.electron .studio-compose textarea:focus { box-shadow: none; }
 .action-picker .picker-clear {
   display: grid;
   place-items: center;
@@ -52,13 +54,20 @@
 .action-picker .picker-views {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin: 11px 0 0;
+  gap: 3px;
+  margin: 5px 0 0;
+}
+.action-picker .picker-types { margin-top: 12px; }
+.action-picker .picker-types h2, .action-picker .picker-section h2 {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
 }
 
-.action-picker .picker-views button {
+.key-studio .action-picker .picker-views button {
   min-height: 30px;
-  padding: 3px 9px;
+  padding: 3px 6px;
   border-radius: 6px;
   color: var(--muted);
   font-size: 12px;
@@ -71,43 +80,21 @@
   font-weight: 600;
 }
 
-.action-picker .picker-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-.action-picker .picker-filter select {
-  flex: 1;
-  min-width: 0;
-  min-height: 32px;
-  background: var(--panel);
-}
-
 .action-picker .picker-results {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 0 var(--picker-gutter) 18px;
   scrollbar-width: thin;
+  scrollbar-gutter: stable;
 }
+.action-picker .picker-hint { margin: 0; font-size: 12px; color: var(--muted); }
 
 .action-picker .picker-section {
   padding-top: 10px;
   border-top: 1px solid var(--line);
 }
 
-.action-picker .picker-section + .picker-section { margin-top: 14px; }
-
-.action-picker .picker-section h3 {
-  margin: 0 0 5px;
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 600;
-}
 
 .action-picker .picker-item {
   display: flex;
@@ -157,16 +144,6 @@
   line-height: 1.35;
 }
 
-.action-picker .picker-item-verb {
-  display: flex;
-  flex: none;
-  align-items: center;
-  gap: 3px;
-  color: var(--signal);
-  font-size: 11px;
-  font-weight: 600;
-  white-space: nowrap;
-}
 .action-picker .picker-return {
   flex: none;
   color: var(--muted);

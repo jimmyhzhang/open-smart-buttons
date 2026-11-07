@@ -627,6 +627,10 @@ export function createRpc(engine: Engine): Record<string, RpcHandler> {
       await engine.refreshStates(false, keys.map(String), hub);
       return Object.fromEntries(keys.map((k) => [k, hub.reading(String(k)) ?? null]));
     },
+    'agentTasks.cancel': ({ id }) => {
+      if (typeof id !== 'string') throw new Error('Choose a running AI task.');
+      engine.agentTasks.cancel(id);
+    },
 
     // ---- images & settings ----------------------------------------------------------------
     'images.upload': ({ base64, ext }) => store.putImage(Buffer.from(String(base64), 'base64'), String(ext || 'png')),

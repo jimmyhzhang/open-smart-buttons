@@ -1,6 +1,7 @@
 // Data model shared by the server and the UI.
 
 import type { StateRule } from './state-rules.ts';
+import type { AgentTask } from './agent-task.ts';
 
 export type IconRef =
   | { kind: 'lucide'; name: string }
@@ -181,6 +182,7 @@ export interface DiscoveredSummary {
 }
 
 export interface AppState {
+  agentTasks?: AgentTask[];
   config: Config;
   catalog: ActionMeta[];
   devices: DeviceSummary[];

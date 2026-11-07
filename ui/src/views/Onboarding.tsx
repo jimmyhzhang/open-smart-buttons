@@ -14,11 +14,17 @@ const STEPS = 4;
 export function Onboarding() {
   const { state } = useAppState();
   const [step, setStep] = useState(0);
+  const [skippedPermissions, setSkippedPermissions] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const primaryRef = useRef<(() => void) | null>(null);
   const ready = state !== null;
 
   const next = useCallback(() => setStep((s) => Math.min(s + 1, STEPS - 1)), []);
+  const useSimulator = () => { setSkippedPermissions(true); setStep(3); };
+  const previous = () => {
+    setStep(step === 3 && skippedPermissions ? 1 : Math.max(0, step - 1));
+    setSkippedPermissions(false);
+  };
 
   // Move focus to the new step's heading so screen readers announce it and Enter still works.
   useEffect(() => {
@@ -48,14 +54,14 @@ export function Onboarding() {
     );
   }
 
-  const stepProps = { state, headingRef, primaryRef, next };
+  const stepProps = { state, headingRef, primaryRef, next, previous };
   return (
     <main className="onb">
       <div className="onb-step" key={step}>
         {step === 0 && <Welcome {...stepProps} />}
-        {step === 1 && <PlugIn {...stepProps} />}
+        {step === 1 && <PlugIn {...stepProps} useSimulator={useSimulator} />}
         {step === 2 && <Permissions {...stepProps} />}
-        {step === 3 && <Finish {...stepProps} />}
+        {step === 3 && <Finish {...stepProps} skippedPermissions={skippedPermissions} />}
       </div>
       <ErrorNote />
     </main>
@@ -67,12 +73,13 @@ interface StepProps {
   headingRef: RefObject<HTMLHeadingElement | null>;
   primaryRef: MutableRefObject<(() => void) | null>;
   next: () => void;
+  previous: () => void;
 }
 
 /** Shared step frame: hero, heading, body, and a footer with the step dots and the one primary button. */
-function Step({ hero, title, body, children, footer, headingRef, index }: {
+function Step({ hero, title, body, children, footer, headingRef, index, previous, total = STEPS }: {
   hero?: ReactNode; title: string; body?: ReactNode; children?: ReactNode; footer: ReactNode;
-  headingRef: StepProps['headingRef']; index: number;
+  headingRef: StepProps['headingRef']; index: number; previous?: () => void; total?: number;
 }) {
   return (
     <>
@@ -83,17 +90,20 @@ function Step({ hero, title, body, children, footer, headingRef, index }: {
         {children}
       </div>
       <footer className="onb-footer">
-        <StepDots index={index} />
-        <div className="onb-actions">{footer}</div>
+        <StepDots index={index} total={total} />
+        <div className="onb-actions">
+          {previous && <button type="button" className="onb-link" onClick={previous}>Back</button>}
+          {footer}
+        </div>
       </footer>
     </>
   );
 }
 
-function StepDots({ index }: { index: number }) {
+function StepDots({ index, total }: { index: number; total: number }) {
   return (
-    <div className="onb-dots" role="img" aria-label={`Step ${index + 1} of ${STEPS}`}>
-      {Array.from({ length: STEPS }, (_, i) => (
+    <div className="onb-dots" role="img" aria-label={`Step ${index + 1} of ${total}`}>
+      {Array.from({ length: total }, (_, i) => (
         <span key={i} className={i === index ? 'on' : i < index ? 'done' : ''} />
       ))}
     </div>
@@ -124,8 +134,8 @@ function Welcome({ headingRef, primaryRef, next }: StepProps) {
       index={0}
       headingRef={headingRef}
       hero={<DeckArt columns={4} rows={2} encoders={0} lit="wave" />}
-      title="Your Stream Deck, without the Stream Deck app."
-      body="Design your keys, switch profiles and control your Mac from one small, quiet app."
+      title="Set up your Stream Deck"
+      body="Assign actions to your keys, switch profiles, and control your Mac from your deck."
       footer={<Primary label="Get Started" onClick={next} primaryRef={primaryRef} />}
     />
   );
@@ -133,7 +143,7 @@ function Welcome({ headingRef, primaryRef, next }: StepProps) {
 
 // ---- 2. Plug in --------------------------------------------------------------------------------------
 
-function PlugIn({ state, headingRef, primaryRef, next }: StepProps) {
+function PlugIn({ state, headingRef, primaryRef, next, previous, useSimulator }: StepProps & { useSimulator(): void }) {
   const nativeState = useNativeState();
   const usb = state.devices.find((d) => d.kind === 'usb');
   const sim = state.devices.find((d) => d.kind === 'sim');
@@ -165,7 +175,7 @@ function PlugIn({ state, headingRef, primaryRef, next }: StepProps) {
     setTrying(true);
     const id = sim ? sim.id : await act<string>('sim.add', { modelId: 'plus' });
     setTrying(false);
-    if (id) next();
+    if (id) useSimulator();
   };
 
   let status: ReactNode;
@@ -196,7 +206,7 @@ function PlugIn({ state, headingRef, primaryRef, next }: StepProps) {
       </StatusLine>
     );
   } else if (sim) {
-    status = <StatusLine tone="ok" icon="check">You're trying a virtual {sim.modelName}. Plug in your deck any time.</StatusLine>;
+    status = <StatusLine tone="ok" icon="check">A simulated {sim.modelName} is ready.</StatusLine>;
   } else {
     status = <StatusLine tone="wait">Looking for your deck…</StatusLine>;
   }
@@ -204,20 +214,13 @@ function PlugIn({ state, headingRef, primaryRef, next }: StepProps) {
   return (
     <Step
       index={1}
+      previous={previous}
       headingRef={headingRef}
       hero={<DeckArt device={deck} lit={usb ? 'on' : sim ? 'on' : 'off'} columns={4} rows={2} encoders={4} />}
-      title="Plug in your Stream Deck."
-      body="Use a USB-C cable. A Stream Deck Neo or Stream Deck + is found as soon as it's connected."
-      footer={
-        <>
-          {!usb && (
-            <button type="button" className="onb-link" onClick={tryWithout} disabled={trying}>
-              {sim ? 'Continue without a deck' : 'Try without a deck'}
-            </button>
-          )}
-          <Primary label="Continue" onClick={next} disabled={!deck} primaryRef={primaryRef} />
-        </>
-      }
+      title={usb ? 'Your deck is connected' : 'Connect your Stream Deck'}
+      body={usb ? 'Continue to choose which actions can control your Mac.' : 'Plug in your deck with USB, or explore the editor with a simulator.'}
+      footer={<Primary label={usb ? 'Continue' : sim ? 'Use Simulator' : 'Try Simulator'}
+        onClick={usb ? next : tryWithout} busy={trying} primaryRef={primaryRef} />}
     >
       <div className="onb-status" aria-live="polite">{status}</div>
     </Step>
@@ -268,7 +271,7 @@ const PERMISSION_COPY: Record<PermissionId, { label: string; detail: string }> =
   automation: { label: 'Automation', detail: 'Lets keys type text and run shortcuts through System Events.' },
 };
 
-function Permissions({ state, headingRef, primaryRef, next }: StepProps) {
+function Permissions({ state, headingRef, primaryRef, next, previous }: StepProps) {
   const prompted = useRef(false);
   const executeActions = state.config.settings.executeActions;
   const [actionsOn, setActionsOn] = useState(executeActions);
@@ -307,10 +310,11 @@ function Permissions({ state, headingRef, primaryRef, next }: StepProps) {
   return (
     <Step
       index={2}
+      previous={previous}
       headingRef={headingRef}
       title="Let StreamDeckPlus press keys for you."
       body="Optional. Keys that send shortcuts or type text need your Mac's permission."
-      footer={<Primary label="Continue" onClick={next} primaryRef={primaryRef} />}
+      footer={<Primary label={actionsOn ? 'Continue' : 'Continue Without Access'} onClick={next} primaryRef={primaryRef} />}
     >
       <div className="onb-group">
         <label className="onb-row onb-row-toggle">
@@ -332,19 +336,19 @@ function Permissions({ state, headingRef, primaryRef, next }: StepProps) {
             {r.ok ? (
               <span className="onb-check" role="img" aria-label={`${r.label} allowed`}><Icon name="check" size={14} /></span>
             ) : (
-              <button type="button" className="onb-secondary" onClick={() => open(r.id)}>Open System Settings</button>
+              <button type="button" className="onb-secondary" aria-label={`Open ${r.label} in System Settings`} onClick={() => open(r.id)}>Open System Settings</button>
             )}
           </div>
         ))}
       </div>
-      <p className="onb-note">Skip — you can do this later in Settings.</p>
+      <p className="onb-note">You can change these permissions in Settings.</p>
     </Step>
   );
 }
 
 // ---- 4. Finish ---------------------------------------------------------------------------------------
 
-function Finish({ headingRef, primaryRef }: StepProps) {
+function Finish({ headingRef, primaryRef, previous, skippedPermissions }: StepProps & { skippedPermissions: boolean }) {
   const nativeState = useNativeState();
   const [openAtLogin, setOpenAtLogin] = useState(true);
   const [showInMenuBar, setShowInMenuBar] = useState(true);
@@ -367,7 +371,9 @@ function Finish({ headingRef, primaryRef }: StepProps) {
 
   return (
     <Step
-      index={3}
+      index={skippedPermissions ? 2 : 3}
+      total={skippedPermissions ? 3 : STEPS}
+      previous={busy ? undefined : previous}
       headingRef={headingRef}
       hero={<div className="onb-done" aria-hidden><Icon name="check" size={28} /></div>}
       title="You're set."

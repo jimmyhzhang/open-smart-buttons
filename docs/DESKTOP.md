@@ -43,6 +43,8 @@ StreamDeckPlus.app
 
 ## Development
 
+With no signing identity, the local build uses an ad-hoc signature and a separate entitlements file so macOS can load the bundled Electron framework. The Developer ID release check requires library validation.
+
 ```sh
 npm ci
 npm run app:dev                         # build the editor and start the app from source

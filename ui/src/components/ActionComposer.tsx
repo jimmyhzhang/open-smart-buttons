@@ -1,25 +1,26 @@
 import { PrivateImage } from './PrivateImage';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import type { ActionInstance, ActionMeta, Appearance, Profile } from '../../../src/shared/types.ts';
+import type { ActionInstance, ActionMeta, Appearance, IconRef, Profile } from '../../../src/shared/types.ts';
 import type { ActionChoice } from '../../../src/shared/action-presets.ts';
-import { validateActionSetup } from '../../../src/shared/action-setup.ts';
+import { actionSummary, validateActionSetup } from '../../../src/shared/action-setup.ts';
 import { validateScriptArguments, type ScriptArgument } from '../../../src/shared/script-arguments.ts';
 import { client } from '../api.ts';
 import { FieldsForm, type FieldCtx } from './Fields.tsx';
 import { Icon } from './Icon.tsx';
+import { IconPicker } from './Inspector.tsx';
 import type { Slot } from './DeviceView.tsx';
 import '../integration-setup.css';
+
+type AppearancePatch = Omit<Appearance, 'icon'> & { icon?: IconRef | null };
 
 interface Props {
   choice: ActionChoice; meta: ActionMeta; profile: Profile; profiles: Profile[]; pageId: string;
   catalog: Map<string, ActionMeta>; initialSlot: Slot; onClose(): void;
   instance?: ActionInstance;
   focusAppearance?: boolean;
-  recordShortcut?: boolean;
-  onSave(slot: Slot, settings: Record<string, unknown>, appearance: Appearance, replaceFolder: boolean): Promise<void>;
+  onSave(slot: Slot, settings: Record<string, unknown>, appearance: AppearancePatch, replaceFolder: boolean): Promise<void>;
 }
 const COLORS = ['#0f172a', '#163456', '#2c2350', '#3f2235', '#10443d', '#4a301e'];
-const ICONS = ['terminal', 'sparkles', 'scan-eye', 'code-xml', 'workflow', 'command', 'rocket', 'folder-open', 'file-code', 'keyboard'];
 interface ScriptInfo { title: string; description?: string; arguments: ScriptArgument[]; warnings: string[] }
 
 export function ActionComposer(p: Props) {
@@ -29,18 +30,28 @@ export function ActionComposer(p: Props) {
   const isShortcut = p.meta.type === 'system.shortcut';
   const launcher = p.meta.type === 'system.raycast' ? 'Raycast' : p.meta.type === 'system.asyar' ? 'Asyar' : null;
   const [slot, setSlot] = useState<Slot>(p.initialSlot);
-  const [settings, setSettings] = useState<Record<string, unknown>>(() => ({
-    ...structuredClone(p.meta.defaults),
-    ...(isScript && !p.instance ? { showOutput: false } : {}),
-    ...structuredClone(p.choice.settings),
-  }));
+  const [settings, setSettings] = useState<Record<string, unknown>>(() => {
+    const draft: Record<string, unknown> = {
+      ...structuredClone(p.meta.defaults),
+      ...(isAgent ? { execution: 'terminal' } : {}),
+      ...(isScript && !p.instance ? { showOutput: false } : {}),
+      ...structuredClone(p.choice.settings),
+    };
+    const previous = p.initialSlot.kind === 'key' ? p.profile.pages[p.pageId]?.keys[p.initialSlot.index] : null;
+    if (isAgent && !draft.cwd && previous?.type.startsWith('agent.')) draft.cwd = previous.settings.cwd;
+    return draft;
+  });
   const [title, setTitle] = useState(p.instance ? p.instance.appearance.title ?? '' : p.choice.appearance?.title || p.choice.name);
   const titleEdited = useRef(!!p.instance);
-  const [icon, setIcon] = useState(p.instance ? p.instance.appearance.icon?.kind === 'lucide' ? p.instance.appearance.icon.name : '__existing' : p.choice.icon);
+  const presetIcon = useRef<IconRef | null>(p.instance ? p.instance.appearance.icon ?? null
+    : p.choice.icon === p.meta.icon ? null : { kind: 'lucide', name: p.choice.icon });
+  const [icon, setIcon] = useState<IconRef | 'app' | null>(presetIcon.current);
+  const [pickingIcon, setPickingIcon] = useState(false);
+  const iconButton = useRef<HTMLButtonElement>(null);
   const initialColor = p.instance ? p.instance.appearance.bg || '#000000' : p.choice.appearance?.bg || COLORS[0]!;
   const [color, setColor] = useState(initialColor);
   const colorEdited = useRef(false);
-  const iconEdited = useRef(!!p.instance);
+  const iconEdited = useRef(false);
   const [appIconFor, setAppIconFor] = useState<{ path: string; id: string | null } | null>(null);
   const appIcon = appIconFor?.id ?? null;
   const initialTitle = useRef(title);
@@ -55,7 +66,7 @@ export function ActionComposer(p: Props) {
   const [scriptError, setScriptError] = useState('');
   const [scriptCheck, setScriptCheck] = useState(0);
   const [inspecting, setInspecting] = useState(false);
-  const revealSessionAtStart = useRef(isAgent && !!settings.prompt);
+  const revealSessionAtStart = useRef(isAgent && settings.mode === 'continue');
   const errorSummary = useRef<HTMLDivElement>(null);
   const errorId = `setup-errors-${useId()}`;
   const [serverInvalidField, setServerInvalidField] = useState<string>();
@@ -70,7 +81,7 @@ export function ActionComposer(p: Props) {
   const fields = p.meta.fields.filter((f) => f.type !== 'folder' && (!f.controllers || f.controllers.includes(slot.kind)) && !(isAgent && settings.mode === 'continue' && f.key === 'prompt') && !(passwordScript && /^arg[1-3]$/.test(f.key))).map((field) => {
     if (isAgent && field.key === 'cwd') return { ...field, help: undefined };
     if (isAgent && field.key === 'mode') return { ...field, options: [{ value: 'new', label: 'Start a new session' }, { value: 'continue', label: 'Continue the last session' }] };
-    if (isAgent && field.key === 'prompt') return { ...field, help: 'A saved task starts when you press the key.' };
+    if (isAgent && field.key === 'prompt') return { ...field, required: settings.execution === 'background' };
     if (isScript && field.key === 'path') return { ...field, label: 'Script file', help: 'Choose an executable script or paste its path.' };
     if (isShortcut && field.key === 'name') return { ...field, placeholder: 'Choose or type a shortcut', help: shortcutNames.length ? undefined : 'Use the name shown in the Shortcuts app.' };
     if (launcher && field.key === 'url') return { ...field, label: 'Command link', help: launcher === 'Raycast' ? 'In Raycast, select the command, open its Action Panel, and choose Copy Deeplink.' : 'Paste the command link from an installed Asyar extension.' };
@@ -84,7 +95,8 @@ export function ActionComposer(p: Props) {
   const invalidFields = fields.filter((f) => f.required && !String(settings[f.key] ?? '').trim()).map((f) => f.key);
   if (launcher && validation.length) invalidFields.push('url');
   if (isShortcut && validation.length) invalidFields.push('name');
-  if (p.meta.type === 'system.hotkey' && !(settings.hotkey as { key?: string } | null)?.key) invalidFields.push('hotkey');
+  if (p.meta.type === 'system.hotkey' && slot.kind === 'key' && !(settings.hotkey as { key?: string } | null)?.key) invalidFields.push('hotkey');
+  if (slot.kind === 'dial' && ['system.hotkey', 'system.command'].includes(p.meta.type) && validation.length) invalidFields.push('left');
   if (scriptInfo) for (const spec of scriptInfo.arguments) if (validateScriptArguments([spec], rawArgs).length) invalidFields.push(`arg${spec.index}`);
   if (serverInvalidField) invalidFields.push(serverInvalidField);
   const ctx: FieldCtx = { profile: p.profile, profiles: p.profiles, catalog: p.catalog, onOpenFolder: () => {} };
@@ -103,7 +115,13 @@ export function ActionComposer(p: Props) {
     return [...folders].slice(0, 20);
   }, [isAgent, p.profiles]);
   const label = `${slot.kind === 'key' ? 'Key' : 'Dial'} ${slot.index + 1}`;
-  const previewIcon = icon === '__existing' ? p.instance?.appearance.icon : icon === '__app' && appIcon ? { kind: 'image' as const, id: appIcon } : { kind: 'lucide' as const, name: icon };
+  const previewIcon = icon === 'app' ? appIcon ? { kind: 'image' as const, id: appIcon } : null : icon;
+  const iconLabel = icon === 'app' ? 'App icon' : icon?.kind === 'lucide' ? icon.name.replaceAll('-', ' ')
+    : icon?.kind === 'emoji' ? icon.char : icon?.kind === 'image' ? 'Custom image' : icon?.kind === 'none' ? 'No icon' : 'Automatic';
+  const closeIconPicker = () => {
+    setPickingIcon(false);
+    requestAnimationFrame(() => iconButton.current?.focus({ preventScroll: true }));
+  };
   const scriptInputs = fields.filter((field) => /^arg[1-3]$/.test(field.key) && field.required);
   const extraScriptFields = fields.filter((f) => f.key !== 'path' && !scriptInputs.includes(f));
   const revealFocusedControl = () => requestAnimationFrame(() => {
@@ -117,7 +135,7 @@ export function ActionComposer(p: Props) {
     const before = document.activeElement as HTMLElement | null;
     const sheet = dialog.current;
     sheet?.showModal();
-    const firstField = (p.focusAppearance ? sheet?.querySelector<HTMLElement>('#key-label') : null)
+    const firstField = (!p.instance ? iconButton.current : p.focusAppearance ? sheet?.querySelector<HTMLElement>('#key-label') : null)
       ?? sheet?.querySelector<HTMLElement>('[aria-required="true"]')
       ?? sheet?.querySelector<HTMLElement>('[id^="f-"]');
     firstField?.focus();
@@ -169,11 +187,15 @@ export function ActionComposer(p: Props) {
     const path = String(settings.path ?? '').trim();
     let live = true;
     const t = setTimeout(() => {
-      if (!path) { setAppIconFor(null); return; }
+      if (!path) {
+        setAppIconFor(null);
+        if (!p.instance && !iconEdited.current) setIcon(presetIcon.current);
+        return;
+      }
       void client.rpc<string | null>('host.appIcon', { app: path }).catch(() => null).then((id) => {
         if (!live) return;
         setAppIconFor({ path, id });
-        if (!iconEdited.current) setIcon(id ? '__app' : p.choice.icon);
+        if (!p.instance && !iconEdited.current) setIcon(id ? 'app' : presetIcon.current);
         if (id && !titleEdited.current) {
           const name = path.replace(/\/+$/, '').split('/').pop()!.replace(/\.app$/i, '');
           const previous = initialTitle.current; // compared before React runs the updater
@@ -187,7 +209,7 @@ export function ActionComposer(p: Props) {
 
   const change = (patch: Record<string, unknown>) => {
     setError(''); setServerInvalidField(undefined);
-    setSettings((s) => ({ ...s, ...patch }));
+    setSettings((s) => ({ ...s, ...patch, ...(isAgent && patch.execution === 'background' ? { mode: 'new' } : {}) }));
     if (isScript && 'path' in patch && patch.path !== scriptPath) {
       currentScriptPath.current = String(patch.path ?? '');
       setScriptInfo(null);
@@ -229,16 +251,16 @@ export function ActionComposer(p: Props) {
         const errors = validateScriptArguments(info.arguments, rawArgs);
         if (errors.length) { const invalid = info.arguments.find((a) => a.type !== 'password' && validateScriptArguments([a], rawArgs).length); setError(errors[0]!); setBusy(false); focusProblem(invalid ? `arg${invalid.index}` : undefined); return; }
       }
-      const appearance: Appearance = {};
+      const appearance: AppearancePatch = {};
       if (!p.instance || savedTitle !== (p.instance.appearance.title ?? '')) appearance.title = p.instance ? savedTitle.trim() : savedTitle.trim() || p.choice.name;
       if (!p.instance || colorEdited.current) appearance.bg = color;
       let savedAppIcon = appIcon;
-      if ((autoAppIcon || icon === '__app') && p.meta.type === 'system.open' && appIconFor?.path !== appPath) {
+      if ((autoAppIcon || icon === 'app') && appIconFor?.path !== appPath) {
         // Saving immediately after typing should use the same icon as waiting for the preview.
         savedAppIcon = await client.rpc<string | null>('host.appIcon', { app: settings.path }).catch(() => null);
       }
-      if ((autoAppIcon || icon === '__app') && savedAppIcon) appearance.icon = { kind: 'image', id: savedAppIcon };
-      else if (icon !== '__existing' && icon !== '__app' && !(!p.instance && !iconEdited.current && icon === p.meta.icon) && (!p.instance || p.instance.appearance.icon?.kind !== 'lucide' || icon !== p.instance.appearance.icon.name)) appearance.icon = { kind: 'lucide', name: icon };
+      if ((autoAppIcon || icon === 'app') && savedAppIcon) appearance.icon = { kind: 'image', id: savedAppIcon };
+      else if (icon !== 'app' && (p.instance ? iconEdited.current : icon)) appearance.icon = icon;
       await p.onSave(slot, savedSettings, appearance, replaceFolder);
     }
     catch (e) { const field = isAgent ? 'cwd' : isScript ? 'path' : undefined; setServerInvalidField(field); setError((e as Error).message); setBusy(false); focusProblem(field); }
@@ -255,14 +277,14 @@ export function ActionComposer(p: Props) {
     ctx={ctx}
     immediate
     preserveStartingTask={isAgent}
-    recordShortcut={p.recordShortcut}
     invalidFields={attempted || error || scriptError ? [...invalidFields, ...(scriptError ? ['path'] : [])] : []}
     errorId={error || attempted && validation.length ? errorId : scriptError ? `${errorId}-script` : undefined}
     suggestions={isShortcut ? { field: 'name', values: shortcutNames } : isAgent ? { field: 'cwd', values: projectFolders } : undefined}
   />;
   const primaryFields = fields.filter((field) =>
-    isAgent ? field.key === 'cwd' : isScript ? field.key === 'path' : true);
-  const description = isAgent ? `Press the key to open ${p.meta.name} in Terminal.` : p.choice.description;
+    isAgent ? ['cwd', 'prompt', 'execution'].includes(field.key) : isScript ? field.key === 'path' : true);
+  const description = isAgent ? settings.execution === 'background' ? `Press the key to run this prompt with ${p.meta.name}.` : `Press the key to open ${p.meta.name} in Terminal.`
+    : p.instance ? actionSummary(p.meta, settings, slot.kind) : p.choice.description;
 
   return <dialog
     ref={dialog}
@@ -289,7 +311,7 @@ export function ActionComposer(p: Props) {
           {p.instance?.appearance.showTitle !== false ? <span className="preview-title">{title || p.choice.name}</span> : null}
         </div>
         <div className="grow">
-          <h2 id="composer-title">{p.choice.name}</h2>
+          <h2 id="composer-title">{p.instance?.appearance.title?.trim() || p.choice.name}</h2>
           <p>{description}</p>
         </div>
       </header>
@@ -299,14 +321,43 @@ export function ActionComposer(p: Props) {
       </div> : null}
       <div className="composer-body" inert={busy} onFocusCapture={revealFocusedControl}>
         <div className="composer-fields">
-          {primaryFields.length > 0 ? <section className="setup-essential">{renderFields(primaryFields)}</section> : null}
+          <details className="setup-disclosure setup-appearance" open={!p.instance || p.focusAppearance || fields.length <= 1 || undefined}>
+            <summary><Icon name="chevron-right" size={14} /> Icon &amp; label</summary>
+            <div className="setup-icon-row">
+              <button ref={iconButton} type="button" className="secondary" onClick={() => pickingIcon ? closeIconPicker() : setPickingIcon(true)}
+                aria-expanded={pickingIcon}><Icon name="shapes" size={15} /> Choose icon…</button>
+              <span className="muted">{iconLabel}</span>
+              {appIcon && icon !== 'app' && <button type="button" className="link" onClick={() => {
+                iconEdited.current = true;
+                setIcon('app');
+              }}>Use app icon</button>}
+            </div>
+            {pickingIcon && <IconPicker current={icon === 'app' ? previewIcon ?? undefined : icon ?? undefined}
+              onClose={closeIconPicker} onPick={picked => { iconEdited.current = true; setIcon(picked); closeIconPicker(); }} />}
+            <div className="composer-look">
+              <label className="field">
+                <span>Button label</span>
+                <input id="key-label" aria-label="Button label" value={title} onChange={(e) => { titleEdited.current = true; setTitle(e.target.value); }} maxLength={60} />
+              </label>
+              <div className="field">
+                <span>Color</span>
+                <div className="color-choices">{[...new Set([...COLORS, initialColor])].map(c => <button type="button" key={c}
+                  aria-label={`Color ${c}`} aria-pressed={color === c} className={color === c ? 'on' : ''} style={{ background: c }}
+                  onClick={() => { colorEdited.current = true; setColor(c); }}>{color === c ? <Icon name="check" size={13} /> : null}</button>)}</div>
+              </div>
+            </div>
+          </details>
+          {primaryFields.length > 0 ? <section className="setup-essential">
+            <h3>Action settings</h3>
+            {renderFields(primaryFields)}
+          </section> : null}
 
           {isAgent ? <>
             <div className={`setup-feedback ${agentStatus === 'unavailable' ? 'setup-warning' : ''}`} role="status">
               <Icon name={agentStatus === 'available' ? 'circle-check' : 'terminal'} size={16} />
               <span>{{
                 checking: 'Checking for the CLI…',
-                available: 'CLI found. Uses your Terminal sign-in.',
+                available: 'CLI found. Uses your CLI sign-in.',
                 unavailable: 'CLI unavailable. Install it before running this key.',
                 unknown: 'CLI status unavailable.',
               }[agentStatus]}</span>
@@ -315,13 +366,13 @@ export function ActionComposer(p: Props) {
                 setAgentCheck((check) => check + 1);
               }}>Check again</button> : null}
             </div>
-            <details className="setup-disclosure" open={revealSessionAtStart.current || undefined}>
+            {settings.execution !== 'background' && <details className="setup-disclosure" open={revealSessionAtStart.current || undefined}>
               <summary>
                 <Icon name="chevron-right" size={14} /> Session options
                 <span>{settings.mode === 'continue' ? 'Continue last' : settings.prompt ? 'Task included' : 'New session'}</span>
               </summary>
-              {renderFields(fields.filter((field) => field.key !== 'cwd'))}
-            </details>
+              {renderFields(fields.filter((field) => !['cwd', 'prompt', 'execution'].includes(field.key)))}
+            </details>}
           </> : null}
 
           {isScript && scriptPath.trim() ? <>
@@ -344,29 +395,6 @@ export function ActionComposer(p: Props) {
           </> : null}
 
           {p.choice.note ? <p className="setup-description warn">{p.choice.note}</p> : null}
-          <details className="setup-disclosure" open={p.focusAppearance || undefined}>
-            <summary><Icon name="chevron-right" size={14} /> Appearance</summary>
-            <label className="field">
-              <span>Button label</span>
-              <input id="key-label" aria-label="Button label" value={title} onChange={(e) => { titleEdited.current = true; setTitle(e.target.value); }} maxLength={60} />
-            </label>
-            <div className="composer-look">
-              <label className="field">
-                <span>Icon</span>
-                <select aria-label="Button icon" value={icon} onChange={(e) => { iconEdited.current = true; setIcon(e.target.value); }}>
-                  {appIcon ? <option value="__app">App icon</option> : null}
-                  {p.instance ? <option value="__existing">{p.instance.appearance.icon ? 'Keep current icon' : 'Automatic icon'}</option> : null}
-                  {[...new Set([p.choice.icon, ...ICONS, ...(icon.startsWith('__') ? [] : [icon])])].map((name) => <option key={name} value={name}>{name.replaceAll('-', ' ')}</option>)}
-                </select>
-              </label>
-              <div className="field">
-                <span>Color</span>
-                <div className="color-choices">{[...new Set([...COLORS, initialColor])].map((c) => <button type="button" key={c}
-                  aria-label={`Color ${c}`} aria-pressed={color === c} className={color === c ? 'on' : ''} style={{ background: c }}
-                  onClick={() => { colorEdited.current = true; setColor(c); }}>{color === c ? <Icon name="check" size={13} /> : null}</button>)}</div>
-              </div>
-            </div>
-          </details>
 
           {previous && !p.instance ? <p className="setup-description warn">Replaces {previous.appearance.title || p.catalog.get(previous.type)?.name || 'the current action'}.</p> : null}
           {previous?.type === 'sd.folder' && !p.instance ? <label className="check warn">
@@ -375,9 +403,8 @@ export function ActionComposer(p: Props) {
         </div>
       </div>
       <footer className="composer-footer">
-        {p.instance ? <span className="setup-slot">{label}</span> : <label className="setup-slot">
-          <span>Target button</span>
-          <select disabled={busy} value={`${slot.kind}:${slot.index}`} onChange={(e) => {
+        {p.instance ? <span className="setup-slot">{label}</span> : (
+          <select className="setup-slot" aria-label="Target button" disabled={busy} value={`${slot.kind}:${slot.index}`} onChange={(e) => {
             const [kind, index] = e.target.value.split(':');
             setSlot({ kind: kind as Slot['kind'], index: Number(index) });
             setConfirmedFolderId(null);
@@ -388,7 +415,7 @@ export function ActionComposer(p: Props) {
                 {kind === 'key' ? 'Key' : 'Dial'} {index + 1} · {action ? action.appearance.title || p.catalog.get(action.type)?.name || action.type : 'Empty'}
               </option>))}
           </select>
-        </label>}
+        )}
         <div className="setup-actions">
           <button type="button" className="secondary" disabled={busy} onClick={p.onClose}>Cancel</button>
           <button className="primary" type={replacing ? 'button' : 'submit'} disabled={busy}

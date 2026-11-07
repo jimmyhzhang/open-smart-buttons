@@ -1,13 +1,13 @@
 import { canConfigureLocalAction, externalActionMessage, isLocalAction } from '../../src/shared/local-action-policy.ts';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { act, client, dismissToast, runLatestToastAction, toast, useAppState, useToasts } from './api.ts';
+import { act, client, dismissToast, runLatestToastAction, toast, useAppState, useToasts, type ToastAction } from './api.ts';
 import type { ButtonTarget } from '../../src/shared/button-agent.ts';
 import type { ActionInstance } from '../../src/shared/types.ts';
 import { ButtonAgentPanel } from './components/ButtonAgentPanel.tsx';
 import { DeviceView, type Mode, type Slot } from './components/DeviceView.tsx';
 import { Library } from './components/Library.tsx';
 import { Inspector } from './components/Inspector.tsx';
-import { EmptyPageStarter, PagesBar } from './components/PagesBar.tsx';
+import { PagesBar, PresetButtonGroups } from './components/PagesBar.tsx';
 import { NeoOptions, touchLabels } from './components/NeoOptions.tsx';
 import { TopBar } from './components/TopBar.tsx';
 import { Drawer } from './components/Drawer.tsx';
@@ -34,9 +34,10 @@ export function App() {
   const [browsing, setBrowsing] = useState(false);
   const [revealTarget,setRevealTarget]=useState<ButtonTarget | null>(null);
   const [menu, setMenu] = useState<{ slot: Slot; x: number; y: number } | null>(null);
-  const [draft, setDraft] = useState<{ choice: ActionChoice; slot: Slot; instance?: ActionInstance; focusAppearance?: boolean; recordShortcut?: boolean } | null>(null);
+  const [draft, setDraft] = useState<{ choice: ActionChoice; slot: Slot; instance?: ActionInstance; focusAppearance?: boolean } | null>(null);
   const adding = useRef(false);
   const pageRef = useRef<string | undefined>(undefined);
+  const slotToast = useRef<number | null>(null);
   const [removal, setRemoval] = useState<{ slot: Slot; profileId: string; pageId: string; actionId: string; name: string } | null>(null);
 
   const device = state?.devices.find((d) => d.id === deviceId) ?? state?.devices.find((d) => d.kind === 'usb') ?? state?.devices[0];
@@ -49,11 +50,15 @@ export function App() {
   const openBrowser = () => {
     setMode('edit');
     setBrowsing(true);
-    requestAnimationFrame(() => document.getElementById('action-search')?.focus());
+    requestAnimationFrame(() => {
+      const search = document.getElementById('action-search');
+      if (matchMedia('(max-width: 899px)').matches) search?.scrollIntoView({ block: 'nearest' });
+      search?.focus({ preventScroll: true });
+    });
   };
   const closeBrowser = () => {
     setBrowsing(false);
-    requestAnimationFrame(() => document.getElementById('browse-actions')?.focus());
+    requestAnimationFrame(() => document.getElementById('browse-actions')?.focus({ preventScroll: true }));
   };
   const selectSlot = (slot: Slot | null) => {
     setSelected(slot);
@@ -61,7 +66,7 @@ export function App() {
     if (slot) requestAnimationFrame(() => {
       const emptyKey = slot.kind === 'key' && !slotInst(slot);
       const prompt = emptyKey ? document.getElementById('agent-instruction') : null;
-      if (prompt) prompt.focus();
+      if (prompt) prompt.focus({ preventScroll: true });
       else document.getElementById('key-workspace-title')?.focus({ preventScroll: true });
     });
   };
@@ -70,7 +75,16 @@ export function App() {
   useEffect(() => {
     if (device) localSet('sdp.device', device.id);
   }, [device?.id]);
-  useEffect(() => { setSelected(null); setBrowsing(false); setDraft(null); setRemoval(null); }, [device?.pageId, device?.id, device?.profileId]);
+  const dismissSlotToast = () => {
+    if (slotToast.current === null) return;
+    dismissToast(slotToast.current);
+    slotToast.current = null;
+  };
+  const notifySlot = (message: string, action?: ToastAction) => {
+    dismissSlotToast();
+    slotToast.current = toast(message, 'info', action);
+  };
+  useEffect(() => { dismissSlotToast(); setSelected(null); setBrowsing(false); setDraft(null); setRemoval(null); }, [device?.pageId, device?.id, device?.profileId]);
   useEffect(()=>{if(revealTarget && device?.pageId===revealTarget.pageId && device?.profileId===revealTarget.profileId){setSelected({kind:revealTarget.kind,index:revealTarget.index});setRevealTarget(null);}},[revealTarget,device?.pageId,device?.profileId]);
 
   const base = (s: Slot) => ({ profileId: profile!.id, pageId: page!.id, kind: s.kind, index: s.index });
@@ -107,7 +121,7 @@ export function App() {
     const quick = !!slot && !list[slot.index] && isOneStepChoice(choice, meta, kind, (t) => catalog.get(t));
     return { meta, kind, list, slot, quick };
   };
-  const chooseAction = (choice: ActionChoice, target?: Slot, opts: { customize?: boolean; recordShortcut?: boolean } = {}) => {
+  const chooseAction = (choice: ActionChoice, target?: Slot, opts: { customize?: boolean } = {}) => {
     const plan = planAdd(choice, target);
     if (!plan || !page || !profile) return;
     const { meta, kind, slot } = plan;
@@ -129,12 +143,12 @@ export function App() {
         // Show the action we just installed.
         if (pageRef.current === pageId) {
           selectSlot({ kind, index: slot.index });
+          notifySlot(`${choice.name} added to ${slotLabel(slot)}`, { label: 'Undo', run: () => client.rpc('slots.clear', { ...where, expectedActionId: id }).catch((e: Error) => toast(e.message, 'error')) });
         }
-        toast(`${choice.name} added to ${slotLabel(slot)}`, 'info', { label: 'Undo', run: () => client.rpc('slots.clear', { ...where, expectedActionId: id }).catch((e: Error) => toast(e.message, 'error')) });
       }).catch((e: Error) => toast(e.message, 'error')).finally(() => { adding.current = false; });
       return;
     }
-    setDraft({ choice, slot: slot ?? { kind, index: 0 }, recordShortcut: opts.recordShortcut });
+    setDraft({ choice, slot: slot ?? { kind, index: 0 } });
   };
   const configureAction = (slot: Slot | null, focusAppearance = false) => {
     if (!slot) return false;
@@ -244,9 +258,6 @@ export function App() {
   const target = selected && profile && page ? { profileId: profile.id, pageId: page.id, ...selected } : null;
   const title = instance?.appearance.title?.trim() || selectedMeta?.name || (instance ? 'Imported action' : undefined);
   const configure = selectedMeta && selectedMeta.category !== 'Hidden' ? () => configureAction(selected) : undefined;
-  const quickActions = !state.platform.localOnly && !instance && selected?.kind === 'key'
-    ? actionChoices(state.catalog).filter(choice => ['system.open', 'system.hotkey'].includes(choice.id))
-    : [];
   const setupIssue = state.platform.localOnly && instance && !isLocalAction(instance) ? externalActionMessage
     : instance && selected && selectedMeta
     ? validateActionSetup(selectedMeta, instance.settings, selected.kind, type => catalog.get(type))[0]
@@ -279,10 +290,10 @@ export function App() {
         <div className={`studio-layout ${mode === 'use' || !device ? 'studio-solo' : ''}`}>
           {device && profile ? (
             <section className="deck-studio" aria-label="Your deck">
-              <div className="deck-studio-header">
+              <header className="deck-studio-header">
                 <div><p className="deck-kicker">{device.kind === 'sim' ? 'Simulator' : 'Connected via USB'}</p><h2>{device.modelName}</h2></div>
                 {mode === 'edit' && selected && <button className="ghost studio-jump" onClick={() => document.getElementById('key-workspace')?.scrollIntoView({ block: 'nearest' })}>Go to {slotLabel(selected).toLowerCase()} <Icon name="arrow-down" size={14}/></button>}
-              </div>
+              </header>
               <div className="deck-stage" data-dials={device.encoders > 0}>
                 <DeviceView
                   device={device} page={page} catalog={catalog} mode={mode}
@@ -304,10 +315,8 @@ export function App() {
               </div>
               {isNative && !state.devices.some((d) => d.kind === 'usb') && (state.platform.hidError || nativeState?.elgato.running)
                 ? <DeckAlert hidError={!!state.platform.hidError} elgato={nativeState?.elgato} /> : null}
-              <PagesBar device={device} profile={profile} />
+              <PagesBar device={device} profile={profile} editable={mode === 'edit'} />
               {mode === 'edit' && device.modelId === 'neo' && <details className="deck-options"><summary>Deck controls</summary><NeoOptions device={device} profile={profile} /></details>}
-              {mode === 'edit' && page && [...page.keys, ...page.dials].every(action => !action) &&
-                <details className="deck-options"><summary>Start from a layout</summary><EmptyPageStarter profile={profile} pageId={page.id} /></details>}
             </section>
           ) : isNative ? (
             <NoDevice hidError={!!state.platform.hidError} elgato={nativeState?.elgato} onTrySimulator={() => act('sim.add', { modelId: 'neo' }).then(id => id && setDeviceId(id))} />
@@ -324,20 +333,18 @@ export function App() {
           )}
           {mode === 'edit' && device && profile && page && (
             <ButtonAgentPanel target={target} title={title} actionId={instance?.id} icon={instance?.appearance.icon?.kind === 'lucide' ? instance.appearance.icon.name : selectedMeta?.icon}
+              backgroundAgent={!!instance?.type.startsWith('agent.') && instance.settings.execution === 'background'}
+              agentTask={state.agentTasks?.find(task => task.deviceId === device.id && task.actionId === instance?.id)}
               actionDescription={actionDescription}
               setupIssue={setupIssue} designBlocked={designBlocked}
               deviceId={device.id} canExecute={device.canExecute ?? state.platform.canExecute} simulator={device.kind === 'sim'}
               browsing={browsing} onBrowse={openBrowser} onCloseBrowse={closeBrowser} onReveal={reveal}
-              quickActions={quickActions.map(choice => ({
-                label: choice.type === 'system.open' ? 'Open an app…' : 'Keyboard shortcut…',
-                icon: choice.icon,
-                choose: () => chooseAction(choice, undefined, { recordShortcut: choice.type === 'system.hotkey' }),
-              }))}
+              presets={<PresetButtonGroups profile={profile} page={page} device={device} showHeading={!instance} />}
               onConfigure={configure}
               onOpenFolder={instance?.type === 'sd.folder' && instance.settings.folderId
                 ? () => void act('session.setPage', { deviceId: device.id, pageId: instance.settings.folderId }) : undefined}
               library={<Library catalog={state.platform.localOnly ? state.catalog.filter((meta) => canConfigureLocalAction(meta.type)) : state.catalog} localOnly={state.platform.localOnly} hasDials={device.encoders > 0} target={selected}
-                onChoose={(choice, options) => chooseAction(choice, undefined, options)} isQuick={choice => !!planAdd(choice)?.quick}/>}
+                onChoose={choice => chooseAction(choice, undefined, { customize: true })}/>}
               advanced={instance && selected ? <Inspector deviceId={device.id} profile={profile} profiles={state.config.profiles}
                 pageId={page.id} slot={selected} instance={instance} catalog={catalog}
                 onOpenFolder={id => act('session.setPage', { deviceId: device.id, pageId: id })}
@@ -352,10 +359,10 @@ export function App() {
         await client.rpc('slots.clear', { profileId: removal.profileId, pageId: removal.pageId, ...removal.slot, expectedActionId: removal.actionId, deleteFolder: true });
         toast('Folder removed');
       }} /> : null}
-      {draft && device && profile && page ? <ActionComposer key={`${draft.choice.id}:${device.id}:${page.id}`} choice={draft.choice} instance={draft.instance} focusAppearance={draft.focusAppearance} recordShortcut={draft.recordShortcut} meta={catalog.get(draft.choice.type)!} profile={profile} profiles={state.config.profiles} pageId={page.id} catalog={catalog} initialSlot={draft.slot} onClose={() => setDraft(null)} onSave={async (slot, settings, appearance, replaceFolder) => {
+      {draft && device && profile && page ? <ActionComposer key={`${draft.choice.id}:${device.id}:${page.id}`} choice={draft.choice} instance={draft.instance} focusAppearance={draft.focusAppearance} meta={catalog.get(draft.choice.type)!} profile={profile} profiles={state.config.profiles} pageId={page.id} catalog={catalog} initialSlot={draft.slot} onClose={() => setDraft(null)} onSave={async (slot, settings, appearance, replaceFolder) => {
         if (draft.instance) await client.rpc('slots.update', { ...base(slot), settings, appearance, expectedActionId: draft.instance.id });
         else await client.rpc('slots.assign', { ...base(slot), type: draft.choice.type, settings, appearance, replaceFolder, configured: true, expectedActionId: slotInst(slot)?.id ?? null });
-        selectSlot(slot); setDraft(null); toast(`${draft.instance ? 'Changes saved on' : 'Ready on'} ${slotLabel(slot)}`);
+        selectSlot(slot); setDraft(null); notifySlot(`${draft.instance ? 'Changes saved on' : 'Ready on'} ${slotLabel(slot)}`);
       }} /> : null}
       {menu ? (
         <ContextMenu

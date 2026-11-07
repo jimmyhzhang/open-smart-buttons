@@ -165,7 +165,7 @@ kbd { font: 11px var(--font); color: var(--muted); }
 .key.over, .zone.over, .knob-cell.over .knob { outline: 2px dashed var(--signal); outline-offset: 3px; }
 
 .strip { position: relative; border-radius: 6px; overflow: hidden; background: #000; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.07), 0 0 0 4px #08090a; touch-action: none; }
-.strip canvas { width: 100%; height: 100%; display: block; }
+.strip img { position: absolute; display: block; pointer-events: none; }
 .strip.use { cursor: crosshair; }
 .zone { position: absolute; top: 0; bottom: 0; cursor: pointer; border-right: 1px dashed rgba(255, 255, 255, 0.08); }
 .zone:last-of-type { border-right: 0; }
@@ -210,13 +210,13 @@ kbd { font: 11px var(--font); color: var(--muted); }
 .inspector { background: var(--panel); flex: 1; }
 .inspector.empty-state { display: grid; place-items: center; color: var(--muted); padding: 30px; text-align: center; min-height: 160px; }
 .inspector.empty-state p { max-width: 380px; margin: 0; }
-.insp-head { display: flex; gap: 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
+.insp-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 10px 14px; align-items: center; padding: 14px 18px; border-bottom: 1px solid var(--line); }
 .insp-preview { width: 56px; height: 56px; border-radius: 10px; background: #000; overflow: hidden; display: grid; place-items: center; flex: none; }
 .insp-preview img { width: 100%; height: 100%; }
-.insp-title { flex: 1; min-width: 0; }
+.insp-title { overflow-wrap: anywhere; }
 .insp-title h2 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
 .insp-title p { margin: 2px 0 0; color: var(--muted); }
-.insp-actions { display: flex; gap: 6px; }
+.insp-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
 .insp-body { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0; }
 .insp-col { padding: 14px 18px 22px; border-right: 1px solid var(--line); position: relative; }
 .insp-col:last-child { border-right: 0; }
@@ -242,8 +242,12 @@ input[type='range'] { width: 100%; accent-color: var(--signal); }
 .check small { display: block; color: var(--muted); }
 .check.compact { align-items: center; }
 .check.compact input { margin-top: 0; }
-.swatch { position: relative; width: 28px; height: 28px; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); cursor: pointer; flex: none; }
-.swatch input { position: absolute; inset: -8px; width: 48px; height: 48px; border: 0; padding: 0; cursor: pointer; }
+.swatch { display: inline-flex; width: 32px; height: 32px; border-radius: 7px; border: 1px solid var(--line); background: var(--panel); cursor: pointer; flex: none; }
+.swatch input { appearance: none; width: 100%; height: 100%; min-width: 0; border: 0; border-radius: inherit; padding: 3px; background: transparent; cursor: inherit; }
+.swatch input::-webkit-color-swatch-wrapper { padding: 0; }
+.swatch input::-webkit-color-swatch { border: 1px solid color-mix(in srgb, var(--ink) 15%, transparent); border-radius: 4px; }
+.swatch:focus-within { outline: 2px solid var(--focus, var(--signal)); outline-offset: 2px; }
+.swatch input:focus { box-shadow: none; }
 .icon-well { width: 52px; height: 52px; border-radius: 9px; background: #000; display: grid; place-items: center; overflow: hidden; border: 1px solid var(--line); }
 .icon-well img { width: 100%; height: 100%; object-fit: contain; }
 .icon-well .emoji { font-size: 28px; }
@@ -523,19 +527,20 @@ button.link { color: var(--signal); margin-left: 8px; text-decoration: underline
 .starter-item > .icon { color: var(--accent); margin-top: 2px; }
 .menu-item .grow b { display: block; font-weight: 600; font-size: 12px; }
 .menu-item .grow small { display: block; color: var(--muted); font-size: 11px; line-height: 1.4; margin-top: 2px; white-space: normal; }
-.empty-starter { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px; margin-top: 14px; font-size: 12px; color: var(--muted); }
-.empty-starter > span { margin-right: 4px; }
-.starter-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--line)); background: color-mix(in srgb, var(--accent) 8%, var(--panel)); font-size: 12px; font-weight: 550; }
-.starter-chip > .icon { color: var(--accent); }
-.starter-chip:hover { border-color: var(--accent); }
 
 /* Neo touch points / info bar options */
 .neo-options { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 18px; margin-top: 14px; font-size: 12px; color: var(--muted); }
 .neo-options label { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
 .neo-options select { font-size: 12px; padding: 3px 6px; min-height: 28px; border-radius: 6px; background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
 
-.bg-swatches { display: inline-flex; gap: 4px; align-items: center; }
-.bg-swatches button { width: 18px; height: 18px; border-radius: 5px; padding: 0; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 0 0 1px var(--line); }
+.appearance-title-position, .appearance-background-heading, .appearance-background-tools { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.appearance-color-row { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; }
+.appearance-title-position + .appearance-color-row { margin-top: 5px; }
+.appearance-background-heading { color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+.appearance-background-tools { margin-top: 7px; }
+.bg-swatches { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 3px; }
+.bg-swatches button { flex: none; width: 28px; height: 28px; border-radius: 7px; padding: 0; border: 1px solid rgba(255,255,255,0.16); box-shadow: 0 0 0 1px var(--line); display: grid; place-items: center; color: #fff; }
+.bg-swatches button:hover { border-color: var(--ink); }
 .bg-swatches button.on { outline: 2px solid var(--signal); outline-offset: 1px; }
 
 .theme-field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 4px 8px 8px; }
@@ -544,9 +549,6 @@ button.link { color: var(--signal); margin-left: 8px; text-decoration: underline
 .page-tab button { white-space: nowrap; }
 @media (max-width: 600px) {
   .device { transform: none; margin-bottom: 0; zoom: 0.7; }
-  .insp-head { flex-wrap: wrap; }
-  .insp-title { flex: 1; min-width: 0; }
-  .insp-actions { width: 100%; justify-content: flex-start; }
   .bench-hint { font-size: 11px; }
   .lib-hint { display: none; }
 }
@@ -623,7 +625,7 @@ html.electron .featured-action:hover { transform: none; }
 /* The TopBar is the title bar: it drags the window, leaves room for the traffic lights,
    and double-clicking empty space zooms (macOS default for drag regions). */
 html.electron .topbar { -webkit-app-region: drag; }
-html.electron .app .topbar, html.electron .studio-app .topbar { padding-left: 78px; }
+html.electron .app .topbar, html.electron .studio-app .topbar { padding-left: 104px; }
 html.electron .topbar :is(button, input, select, textarea, a, label, summary, .seg, .popover, .menu, [role='radiogroup']) { -webkit-app-region: no-drag; }
 /* While reconnecting the overlay covers the TopBar, so it keeps the window movable. */
 html.electron .reconnect-overlay { -webkit-app-region: drag; }
