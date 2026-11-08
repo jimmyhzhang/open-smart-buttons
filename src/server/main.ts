@@ -1,4 +1,4 @@
-// StreamDeckPlus CLI: parse flags, start the embeddable service, print the editor link.
+// Open Smart Buttons CLI: parse flags, start the embeddable service, print the editor link.
 //   node src/server/main.ts [--port 4417] [--sim] [--no-hid] [--data DIR] [--open] [--dev]
 
 import { execFile } from 'node:child_process';
@@ -7,12 +7,13 @@ import { defaultDataDir } from '../engine/store.ts';
 import { configureInference } from '../engine/inference.ts';
 import { setAiPreference } from '../engine/ai-engines.ts';
 import { HOST, ServiceStartError, startService } from './service.ts';
+import { appSetting } from '../engine/app-compat.ts';
 
 // Hand the credential to the inference adapter, then keep it out of child process environments.
-configureInference({ apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.STREAMDECK_CLAUDE_MODEL });
+configureInference({ apiKey: process.env.ANTHROPIC_API_KEY, model: appSetting('CLAUDE_MODEL') });
 delete process.env.ANTHROPIC_API_KEY;
-// AI engine: automatic (Claude Code, then Codex, then the API key) unless STREAMDECK_AI names one.
-setAiPreference(process.env.STREAMDECK_AI);
+// AI engine: automatic (Claude Code, then Codex, then the API key) unless OPEN_SMART_BUTTONS_AI names one.
+setAiPreference(appSetting('AI'));
 
 const args = process.argv.slice(2);
 const flag = (n: string) => args.includes(`--${n}`);

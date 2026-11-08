@@ -1,5 +1,4 @@
-// Built-in action catalog: metadata (sent to the UI) + behavior. Mirrors the Elgato built-ins
-// (com.elgato.streamdeck.system.*, page.*, profile.*, multiactions.*) found in the app bundle.
+// Built-in actions, their metadata, and external profile import identifiers.
 
 import type { ActionInstance, ActionMeta, Hotkey } from '../shared/types.ts';
 import type { MediaCmd, Platform } from './platform.ts';

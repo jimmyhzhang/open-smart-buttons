@@ -30,7 +30,7 @@ export function checkSettingsPatch(value: unknown): Partial<Settings> {
 export function assertProfile(value: unknown): asserts value is Profile {
   if (!record(value) || !validId(value.id) || typeof value.name !== 'string' ||
     typeof value.modelId !== 'string' || !record(value.pages) || !Array.isArray(value.pageOrder) ||
-    typeof value.createdAt !== 'number' || !Number.isFinite(value.createdAt)) throw new Error('Invalid StreamDeckPlus profile.');
+    typeof value.createdAt !== 'number' || !Number.isFinite(value.createdAt)) throw new Error('Invalid Open Smart Buttons profile.');
   const model = modelById(value.modelId);
   const pages = value.pages;
   const entries = Object.entries(pages);

@@ -14,7 +14,7 @@ import { activeRule, describeRule, ruleMatches, stateKey, validateStateRules, ty
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function boot() {
-  const store = new Store(mkdtempSync(join(tmpdir(), 'sdp-')));
+  const store = new Store(mkdtempSync(join(tmpdir(), 'osb-')));
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
   const engine = new Engine(store, manager);

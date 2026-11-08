@@ -6,12 +6,13 @@
 import { spawn } from 'node:child_process';
 import { delimiter, isAbsolute, join } from 'node:path';
 import { homedir, userInfo } from 'node:os';
+import { isAppEnvironmentVariable } from './app-compat.ts';
 
 /** Variables a child never inherits: app credentials and Node/Electron runtime switches. */
-const PRIVATE = /^(ANTHROPIC_API_KEY|STREAMDECK_.*|NODE_OPTIONS|ELECTRON_.*)$/;
+const PRIVATE = /^(ANTHROPIC_API_KEY|NODE_OPTIONS|ELECTRON_.*)$/;
 const PROBE_TIMEOUT_MS = 5000;
-const START = '__SDP_PATH_START__';
-const END = '__SDP_PATH_END__';
+const START = '__OSB_PATH_START__';
+const END = '__OSB_PATH_END__';
 
 let probed: string[] | null = null;
 let probing: Promise<string[]> | null = null;
@@ -129,7 +130,7 @@ export function userPathDirs(): string[] {
 export async function userEnv(extra: Record<string, string> = {}): Promise<NodeJS.ProcessEnv> {
   await warmUserPath();
   const env: NodeJS.ProcessEnv = {};
-  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !PRIVATE.test(k)) env[k] = v;
+  for (const [k, v] of Object.entries(process.env)) if (v !== undefined && !PRIVATE.test(k) && !isAppEnvironmentVariable(k)) env[k] = v;
   const user = safeUser().name;
   env.HOME ||= homedir();
   if (user) { env.USER ||= user; env.LOGNAME ||= user; }

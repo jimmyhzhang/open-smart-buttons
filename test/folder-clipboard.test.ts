@@ -23,7 +23,7 @@ function ids(instance: ActionInstance, pages: Record<string, Page>): string[] {
 }
 
 async function setup(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-folder-clipboard-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-folder-clipboard-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();

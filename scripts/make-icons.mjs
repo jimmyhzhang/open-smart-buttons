@@ -61,7 +61,7 @@ function draw(size) {
   return c.toBuffer('image/png');
 }
 
-const work = mkdtempSync(join(tmpdir(), 'sdp-icon-'));
+const work = mkdtempSync(join(tmpdir(), 'osb-icon-'));
 try {
   const set = join(work, 'icon.iconset');
   mkdirSync(set);

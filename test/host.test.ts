@@ -38,7 +38,7 @@ test('native chooser builds a safe AppleScript and maps cancel to null', async (
 });
 
 test('installed apps are listed, de-duplicated, and resolvable by name', (t) => {
-  const root = mkdtempSync(join(tmpdir(), 'sdp-apps-'));
+  const root = mkdtempSync(join(tmpdir(), 'osb-apps-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const a = join(root, 'A'), b = join(root, 'B');
   for (const d of [a, b]) mkdirSync(d);
@@ -55,7 +55,7 @@ test('installed apps are listed, de-duplicated, and resolvable by name', (t) => 
 });
 
 test('app icons are converted from the bundle icns with sips', async (t) => {
-  const root = mkdtempSync(join(tmpdir(), 'sdp-icon-'));
+  const root = mkdtempSync(join(tmpdir(), 'osb-icon-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const app = join(root, 'Demo.app');
   mkdirSync(join(app, 'Contents', 'Resources'), { recursive: true });

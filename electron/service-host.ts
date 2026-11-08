@@ -130,7 +130,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
       // A socket path, not a secret: lets `git pull` over SSH use the keys loaded in your ssh-agent.
       ...(process.env.SSH_AUTH_SOCK ? { SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK } : {}),
     };
-    const child = utilityProcess.fork(this.opts.entry, [], { serviceName: 'StreamDeckPlus Service', env, stdio: 'pipe' });
+    const child = utilityProcess.fork(this.opts.entry, [], { serviceName: 'Open Smart Buttons Service', env, stdio: 'pipe' });
     this.child = child;
     child.stdout?.on('data', (d: Buffer) => log('service', String(d)));
     child.stderr?.on('data', (d: Buffer) => log('service', String(d)));
@@ -196,7 +196,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
     const now = Date.now();
     this.crashes = [...this.crashes.filter((t) => now - t < CRASH_WINDOW_MS), now];
     if (this.crashes.length >= MAX_CRASHES) {
-      this.setPhase({ phase: 'fatal', message: 'StreamDeckPlus stopped unexpectedly.' });
+      this.setPhase({ phase: 'fatal', message: 'Open Smart Buttons stopped unexpectedly.' });
       return;
     }
     const attempt = this.crashes.length;
@@ -240,7 +240,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
   }
 
   testInference(): Promise<{ ok: boolean; message: string }> {
-    if (!this.child || this.phase.phase !== 'ready') return Promise.resolve({ ok: false, message: 'StreamDeckPlus is still starting.' });
+    if (!this.child || this.phase.phase !== 'ready') return Promise.resolve({ ok: false, message: 'Open Smart Buttons is still starting.' });
     const id = this.nextId++;
     return new Promise((resolve) => {
       const timer = setTimeout(() => { this.waiters.delete(id); resolve({ ok: false, message: 'The test timed out.' }); }, 100_000);
@@ -248,7 +248,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
         if ((m.type as string) === 'gone') {
           clearTimeout(timer);
           this.waiters.delete(id);
-          resolve({ ok: false, message: 'StreamDeckPlus restarted during the test. Try again.' });
+          resolve({ ok: false, message: 'Open Smart Buttons restarted during the test. Try again.' });
           return;
         }
         if (m.type !== 'inferenceTested') return;
@@ -277,7 +277,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
       this.waiters.set(id, (m) => {
         if ((m.type as string) === 'gone') {
           this.waiters.delete(id);
-          resolve({ ok: false, message: 'StreamDeckPlus stopped during the repair. Nothing was changed.' });
+          resolve({ ok: false, message: 'Open Smart Buttons stopped during the repair. Nothing was changed.' });
           return;
         }
         if (m.type !== 'repaired') return;
@@ -312,7 +312,7 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
 
   private connectSocket() {
     this.disconnectSocket();
-    const ws = new WebSocket(`ws://${HOST}:${this.port}/ws`, 'sdp.v1', {
+    const ws = new WebSocket(`ws://${HOST}:${this.port}/ws`, 'osb.v1', {
       headers: { authorization: `Bearer ${this.token}` },
       perMessageDeflate: false,
     });
@@ -351,13 +351,13 @@ export class ServiceHost extends EventEmitter<ServiceHostEvents> {
   }
 
   private failPending() {
-    for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(new Error('StreamDeckPlus is restarting.')); }
+    for (const p of this.pending.values()) { clearTimeout(p.timer); p.reject(new Error('Open Smart Buttons is restarting.')); }
     this.pending.clear();
   }
 
   rpc<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     const ws = this.ws;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('StreamDeckPlus is not ready yet.'));
+    if (!ws || ws.readyState !== WebSocket.OPEN) return Promise.reject(new Error('Open Smart Buttons is not ready yet.'));
     const id = this.nextId++;
     return new Promise<T>((resolve, reject) => {
       const timer = setTimeout(() => { this.pending.delete(id); reject(new Error(`${method} timed out`)); }, 15_000);

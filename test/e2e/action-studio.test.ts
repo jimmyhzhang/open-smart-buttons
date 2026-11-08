@@ -44,7 +44,7 @@ class AppServer {
     this.endpoint = `http://127.0.0.1:${port}`;
     this.tokenFile = join(data, `session-${port}.token`);
     this.child = spawn(process.execPath, ['src/server/main.ts', '--no-hid', '--data', data, '--port', String(port), ...extra], {
-      cwd: root, env: { ...process.env, STREAMDECKPLUS_DATA: data }, stdio: ['pipe', 'pipe', 'pipe'],
+      cwd: root, env: { ...process.env, OPEN_SMART_BUTTONS_DATA: data }, stdio: ['pipe', 'pipe', 'pipe'],
     });
     this.child.stdin.end();
     const capture = (chunk: Buffer) => { this.output = (this.output + String(chunk)).slice(-8000); };
@@ -155,7 +155,7 @@ function fixtureProfile(id: string, name: string): Profile {
 }
 
 test('action studio end to end: isolated HTTP/RPC setup, dry-run Neo routing, atomicity and restart persistence', { timeout: 60_000 }, async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'sdp-action-studio-e2e-'));
+  const dir = await mkdtemp(join(tmpdir(), 'osb-action-studio-e2e-'));
   const marker = join(dir, 'must-not-execute');
   const script = join(dir, 'selected script.sh');
   const schemaScript = join(dir, 'typed metadata.sh');
@@ -203,12 +203,12 @@ test('action studio end to end: isolated HTTP/RPC setup, dry-run Neo routing, at
       socket.terminate();
     }
     const browser = new WebSocket(app.endpoint.replace('http:', 'ws:') + '/ws',
-      ['sdp.v1', `auth.${app.browserToken()}`], { origin: app.endpoint });
+      ['osb.v1', `auth.${app.browserToken()}`], { origin: app.endpoint });
     await bounded(new Promise<void>((resolve, reject) => {
       browser.once('message', raw => {
         try {
           assert.equal(JSON.parse(String(raw)).type, 'state');
-          assert.equal(browser.protocol, 'sdp.v1');
+          assert.equal(browser.protocol, 'osb.v1');
           resolve();
         } catch (error) { reject(error); }
       });
@@ -441,7 +441,7 @@ test('action studio end to end: isolated HTTP/RPC setup, dry-run Neo routing, at
 });
 
 test('simulator-only launch preserves the saved USB execution preference across shutdown', async (t) => {
-  const dir = await mkdtemp(join(tmpdir(), 'sdp-sim-preference-'));
+  const dir = await mkdtemp(join(tmpdir(), 'osb-sim-preference-'));
   const store = new Store(dir);
   store.config.settings.executeActions = true;
   store.flush();

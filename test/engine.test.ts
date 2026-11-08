@@ -12,7 +12,7 @@ import { encodeKeysInput, encodeEncoderRotateInput, encodeTouchInput } from '../
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function boot() {
-  const store = new Store(mkdtempSync(join(tmpdir(), 'sdp-')));
+  const store = new Store(mkdtempSync(join(tmpdir(), 'osb-')));
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
   const engine = new Engine(store, manager);
@@ -77,7 +77,7 @@ test('rpc: assign, move, paste and clear slots; folder pages are created and cle
 });
 
 test('Stream Deck Neo: flipped key images, info bar via 02 0b, touch points page and light up', async () => {
-  const store = new Store(mkdtempSync(join(tmpdir(), 'sdp-')));
+  const store = new Store(mkdtempSync(join(tmpdir(), 'osb-')));
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
   const engine = new Engine(store, manager);

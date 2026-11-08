@@ -38,7 +38,7 @@ test('reconnect closes before opening, coalesces repeated clicks, and preserves 
       return transport;
     },
   });
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-reconnect-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-reconnect-'));
   const store = new Store(dir); store.config.settings.executeActions = false;
   const engine = new Engine(store, manager);
   t.after(async () => { await manager.stop(); store.flush(); rmSync(dir, { recursive: true, force: true }); });

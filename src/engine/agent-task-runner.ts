@@ -24,7 +24,7 @@ export const runAgentTask: AgentTaskRunner = async (input, signal) => {
   const env = await userEnv(input.tool === 'claude' ? { CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: '1' } : {});
   const executable = findExecutable(input.tool, userPathDirs());
   if (!executable) throw new Error(`${input.tool === 'claude' ? 'Claude Code' : 'Codex'} is not installed. Choose another CLI or install it first.`);
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-agent-task-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-agent-task-'));
   try {
     const resultFile = join(dir, 'response.txt');
     const raw = await boundedProcess(executable, agentTaskArguments(input.tool, resultFile), cwd, input.prompt, signal, TIMEOUT_MS, env);

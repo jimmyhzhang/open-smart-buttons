@@ -1,4 +1,4 @@
-// StreamDeckPlus service: device manager + engine + HTTP/WebSocket API for the UI.
+// Open Smart Buttons service: device manager + engine + HTTP/WebSocket API for the UI.
 // Embeddable: the CLI (main.ts) and the desktop app's utility process both call startService().
 // Nothing here calls process.exit or reads argv; startup failures reject with a ServiceStartError.
 
@@ -22,6 +22,7 @@ import { hexPreview, summarizeReport } from '../protocol/reports.ts';
 import type { AppState, HidLogEntry } from '../shared/types.ts';
 import type { StartErrorKind } from '../shared/native.ts';
 import { warmUserPath } from '../engine/user-env.ts';
+import { appSetting } from '../engine/app-compat.ts';
 
 export const HOST = '127.0.0.1';
 
@@ -36,13 +37,13 @@ export interface ServiceOptions {
   hid?: boolean;
   /** Overrides the saved autoSimulator setting (the desktop app passes false). */
   autoSimulator?: boolean;
-  /** Name macOS attributes permissions to, e.g. "StreamDeckPlus". Defaults to the terminal's name. */
+  /** Name macOS attributes permissions to, e.g. "Open Smart Buttons". Defaults to the terminal's name. */
   appName?: string;
   /** Also accept the Vite dev-server origin. Never set in packaged builds. */
   dev?: boolean;
   /**
    * Strict mode: only built-in deck, volume and Mac controls may run. Off by default so every
-   * action in the library works; STREAMDECK_LOCAL_ONLY=1 turns it on from Terminal.
+   * action in the library works; OPEN_SMART_BUTTONS_LOCAL_ONLY=1 turns it on from Terminal.
    */
   localOnly?: boolean;
 }
@@ -106,14 +107,14 @@ export function acquireLock(lockFile: string): string {
   }
   const owner = Number(readFileSync(lockFile, 'utf8').trim());
   if (owner !== process.pid && processAlive(owner)) {
-    throw new ServiceStartError('locked', `This data directory is in use by another StreamDeckPlus (pid ${owner}): ${lockFile}. Stop it before starting another.`);
+    throw new ServiceStartError('locked', `This data directory is in use by another Open Smart Buttons (pid ${owner}): ${lockFile}. Stop it before starting another.`);
   }
   const temp = `${lockFile}.${process.pid}.tmp`;
   writeFileSync(temp, mine, { mode: 0o600, flag: 'w' });
   renameSync(temp, lockFile);
   // Two reclaimers can race; the one whose pid survived the rename owns the lock.
   if (readFileSync(lockFile, 'utf8') !== mine) {
-    throw new ServiceStartError('locked', `Another StreamDeckPlus took this data directory while starting: ${lockFile}.`);
+    throw new ServiceStartError('locked', `Another Open Smart Buttons took this data directory while starting: ${lockFile}.`);
   }
   heldLocks.add(lockFile);
   return mine;
@@ -130,7 +131,7 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
     throw new ServiceStartError('start-failed', 'Choose a port from 0 to 65535.');
   }
   if (opts.appName) setHostAppName(opts.appName);
-  const localOnly = opts.localOnly ?? process.env.STREAMDECK_LOCAL_ONLY === '1';
+  const localOnly = opts.localOnly ?? appSetting('LOCAL_ONLY') === '1';
   void warmUserPath(); // read the login-shell PATH early, so the first command or AI design doesn't wait
   const dataDir = resolve(opts.dataDir);
   mkdirSync(dataDir, { mode: 0o700, recursive: true });
@@ -272,7 +273,7 @@ export async function startService(opts: ServiceOptions): Promise<RunningService
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: 18 * 1024 * 1024,
-    handleProtocols: (protocols) => protocols.has('sdp.v1') ? 'sdp.v1' : false,
+    handleProtocols: (protocols) => protocols.has('osb.v1') ? 'osb.v1' : false,
   });
   http.on('upgrade', (req, socket, head) => {
     const allowed = !!session && session.validHost(req) && req.url === '/ws' && session.authorizedSocket(req);

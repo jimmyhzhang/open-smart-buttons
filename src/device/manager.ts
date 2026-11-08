@@ -140,7 +140,7 @@ export class DeviceManager extends EventEmitter<ManagerEvents> {
       const msg = (e as Error).message || String(e);
       this.failedPaths.set(path, {
         error: /exclusive|privilege|access|open/i.test(msg)
-          ? 'This Stream Deck is already in use or cannot be opened. Another StreamDeckPlus instance, Elgato Stream Deck, or OpenDeck may own it. Use the connected instance or disconnect it there before retrying.'
+          ? 'This Stream Deck is already in use or cannot be opened. Another Open Smart Buttons instance, Elgato Stream Deck, or OpenDeck may own it. Use the connected instance or disconnect it there before retrying.'
           : msg,
         at: Date.now(),
       });

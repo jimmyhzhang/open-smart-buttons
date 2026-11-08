@@ -88,7 +88,7 @@ export function prepareAgentLaunch(options: AgentLaunchOptions, env: LauncherEnv
   if (prompt.includes('\0')) throw new Error('The agent prompt cannot contain a null character');
   if (mode === 'continue' && prompt.trim()) throw new Error('Continue resumes the last session without a new prompt. Choose New session to send this prompt.');
   const executable = findExecutable(options.tool, env.searchDirs ?? executableDirs(home));
-  if (!executable) throw new Error(`${TOOLS[options.tool]} was not found. Install it and restart StreamDeckPlus so it can see your PATH.`);
+  if (!executable) throw new Error(`${TOOLS[options.tool]} was not found. Install it and restart Open Smart Buttons so it can see your PATH.`);
   const args = options.tool === 'codex'
     ? ['--cd', cwd, '--sandbox', 'workspace-write', '--ask-for-approval', 'on-request', ...(mode === 'continue' ? ['resume', '--last'] : [])]
     : ['--permission-mode', 'default', ...(mode === 'continue' ? ['--continue'] : [])];

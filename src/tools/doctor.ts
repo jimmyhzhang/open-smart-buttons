@@ -1,15 +1,15 @@
-// Read-only diagnosis of an already running StreamDeckPlus server.
+// Read-only diagnosis of an already running Open Smart Buttons server.
 // No device access or action/permission RPCs: only GET /api/state and hid.subscribe.
 import { WebSocket } from 'ws';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { appDataDir } from '../engine/app-compat.ts';
 import type { ActionInstance, AppState, DeviceSummary, HidLogEntry } from '../shared/types.ts';
 
 const args = process.argv.slice(2);
 const usage = 'Usage: npm run doctor -- [--port 4417] [--listen]\n\nReads the running app and lists the current key mappings.\n--listen  Observe input and incoming HID reports for 30 seconds.\n--port N  Use another local app port (default: the running app port, else 4417).\nNo actions, configuration changes, USB access, or permission prompts.';
 let port: number | null = null;
-let data = process.env.STREAMDECKPLUS_DATA || join(homedir(), '.streamdeckplus');
+let data = appDataDir();
 let listen = false;
 for (let i = 0; i < args.length; i++) {
   const arg = args[i];
@@ -57,7 +57,7 @@ function actionLabel(state: AppState, action: ActionInstance | null | undefined)
 
 function report(state: AppState): void {
   const execution = state.config.settings.executeActions && state.platform.canExecute ? 'LIVE' : 'DRY RUN';
-  console.log(`StreamDeckPlus ${endpoint} — ${execution}`);
+  console.log(`Open Smart Buttons ${endpoint} — ${execution}`);
   console.log(`Host: ${label(state.platform.host)}; OS: ${label(state.platform.os)}; HID: ${state.platform.hidAvailable ? 'available' : 'unavailable'}`);
   if (!state.platform.permissions.length) console.log('Permissions: no status reported by the app.');
   for (const p of state.platform.permissions) {

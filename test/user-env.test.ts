@@ -4,8 +4,8 @@ import { delimiter } from 'node:path';
 import { parseProbe, resetUserPathForTests, userEnv, userPathDirs } from '../src/engine/user-env.ts';
 
 test('login-shell PATH probe ignores shell noise and needs both markers', () => {
-  assert.deepEqual(parseProbe('starship warning\n__SDP_PATH_START__/opt/homebrew/bin:/usr/bin:relative__SDP_PATH_END__\n'), ['/opt/homebrew/bin', '/usr/bin']);
-  assert.equal(parseProbe('__SDP_PATH_START__/usr/bin'), null);
+  assert.deepEqual(parseProbe('starship warning\n__OSB_PATH_START__/opt/homebrew/bin:/usr/bin:relative__OSB_PATH_END__\n'), ['/opt/homebrew/bin', '/usr/bin']);
+  assert.equal(parseProbe('__OSB_PATH_START__/usr/bin'), null);
   assert.equal(parseProbe('no markers'), null);
 });
 
@@ -15,7 +15,9 @@ test('user environment keeps user tools reachable and app credentials out', asyn
   resetUserPathForTests(['/probe/bin']);
   process.env.PATH = '/first/bin';
   process.env.ANTHROPIC_API_KEY = 'secret';
-  process.env.STREAMDECK_LOCAL_ONLY = '1';
+  process.env.OPEN_SMART_BUTTONS_LOCAL_ONLY = '1';
+  process.env.OPEN_SMART_BUTTONS_DATA = '/private/app-data';
+  process.env.OSB_SIGN_IDENTITY = 'app-build-setting';
   process.env.NODE_OPTIONS = '--inspect';
   process.env.MY_SCRIPT_VAR = 'kept';
   const env = await userEnv({ EXTRA: 'x' });
@@ -24,7 +26,9 @@ test('user environment keeps user tools reachable and app credentials out', asyn
   assert.ok(dirs.includes('/probe/bin') && dirs.includes('/opt/homebrew/bin') && dirs.includes('/usr/bin'));
   assert.deepEqual(dirs, userPathDirs());
   assert.equal(env.ANTHROPIC_API_KEY, undefined);
-  assert.equal(env.STREAMDECK_LOCAL_ONLY, undefined);
+  assert.equal(env.OPEN_SMART_BUTTONS_LOCAL_ONLY, undefined);
+  assert.equal(env.OPEN_SMART_BUTTONS_DATA, undefined);
+  assert.equal(env.OSB_SIGN_IDENTITY, undefined);
   assert.equal(env.NODE_OPTIONS, undefined);
   assert.equal(env.MY_SCRIPT_VAR, 'kept');
   assert.equal(env.EXTRA, 'x');

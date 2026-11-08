@@ -102,9 +102,9 @@ export function DeviceView(p: Props) {
     const meta = (type: string) => p.catalog.get(type);
     return {
       onDragOver: (e: React.DragEvent) => {
-        if (e.dataTransfer.types.includes('application/x-sdp-action') || e.dataTransfer.types.includes('application/x-sdp-slot')) {
+        if (e.dataTransfer.types.includes('application/x-osb-action') || e.dataTransfer.types.includes('application/x-osb-slot')) {
           e.preventDefault();
-          e.dataTransfer.dropEffect = e.dataTransfer.types.includes('application/x-sdp-slot') && !e.altKey ? 'move' : 'copy';
+          e.dataTransfer.dropEffect = e.dataTransfer.types.includes('application/x-osb-slot') && !e.altKey ? 'move' : 'copy';
           setDragOver(id);
         }
       },
@@ -112,13 +112,13 @@ export function DeviceView(p: Props) {
       onDrop: (e: React.DragEvent) => {
         e.preventDefault();
         setDragOver(null);
-        const type = e.dataTransfer.getData('application/x-sdp-preset') || e.dataTransfer.getData('application/x-sdp-action');
+        const type = e.dataTransfer.getData('application/x-osb-preset') || e.dataTransfer.getData('application/x-osb-action');
         if (type) {
           void meta;
           p.onDropAction(s, type);
           return;
         }
-        const from = e.dataTransfer.getData('application/x-sdp-slot');
+        const from = e.dataTransfer.getData('application/x-osb-slot');
         if (from) p.onMoveSlot(JSON.parse(from), s, e.altKey);
       },
     };
@@ -129,7 +129,7 @@ export function DeviceView(p: Props) {
       ? {
           draggable: true,
           onDragStart: (e: React.DragEvent) => {
-            e.dataTransfer.setData('application/x-sdp-slot', JSON.stringify(s));
+            e.dataTransfer.setData('application/x-osb-slot', JSON.stringify(s));
             e.dataTransfer.effectAllowed = 'copyMove';
           },
         }

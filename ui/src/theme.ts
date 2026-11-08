@@ -5,7 +5,7 @@ export type Theme = 'system' | 'light' | 'dark';
 
 export function savedTheme(): Theme {
   try {
-    const t = localStorage.getItem('sdp.theme');
+    const t = localStorage.getItem('osb.theme');
     return t === 'light' || t === 'dark' ? t : 'system';
   } catch { return 'system'; }
 }
@@ -23,7 +23,7 @@ export function applyTheme(t: Theme, mirror = true) {
   if (t === 'system') delete document.documentElement.dataset.theme;
   else document.documentElement.dataset.theme = t;
   if (current !== t) { current = t; listeners.forEach((l) => l()); }
-  try { localStorage.setItem('sdp.theme', t); } catch { /* per-browser preference only */ }
+  try { localStorage.setItem('osb.theme', t); } catch { /* per-browser preference only */ }
   // In the app, window chrome, menus and dialogs follow the same choice.
   if (mirror) void native?.setPref('theme', t).catch(() => {});
 }

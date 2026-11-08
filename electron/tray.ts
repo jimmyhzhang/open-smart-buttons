@@ -1,5 +1,5 @@
 // The menu bar extra. Its glyph is a 3×2 key grid drawn in code as a template image: solid when a deck
-// is connected, outline when none is, and a badge when StreamDeckPlus needs the user.
+// is connected, outline when none is, and a badge when Open Smart Buttons needs the user.
 
 import { Menu, Tray, nativeImage, type MenuItemConstructorOptions, type NativeImage } from 'electron';
 import type { AppState } from '../src/shared/types.ts';
@@ -66,7 +66,7 @@ let tray: Tray | null = null;
 export function setTrayVisible(visible: boolean): Tray | null {
   if (visible && !tray) {
     tray = new Tray(glyphImage('outline', false));
-    tray.setToolTip('StreamDeckPlus');
+    tray.setToolTip('Open Smart Buttons');
   } else if (!visible && tray) {
     tray.destroy();
     tray = null;

@@ -13,7 +13,7 @@ import { configureInference, inferenceAvailable } from '../src/engine/inference.
 import { setHostAppName } from '../src/engine/platform.ts';
 
 const tempDir = (t: { after: (fn: () => void) => void }) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-service-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-service-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
   return dir;
 };
@@ -34,7 +34,7 @@ async function get(svc: RunningService, path: string, token?: string) {
 
 function rpc(svc: RunningService, method: string, params: Record<string, unknown> = {}): Promise<unknown> {
   return new Promise((done, fail) => {
-    const ws = new WebSocket(`ws://127.0.0.1:${svc.port}/ws`, 'sdp.v1', { headers: { authorization: `Bearer ${svc.token}` } });
+    const ws = new WebSocket(`ws://127.0.0.1:${svc.port}/ws`, 'osb.v1', { headers: { authorization: `Bearer ${svc.token}` } });
     ws.on('error', fail);
     ws.on('open', () => ws.send(JSON.stringify({ id: 1, method, params })));
     ws.on('message', (raw) => {
@@ -139,10 +139,10 @@ test('a port in use rejects as port-in-use and frees the lock', async (t) => {
 
 test('appName replaces the terminal name in permission copy', async (t) => {
   t.after(() => setHostAppName(null));
-  const svc = await startService({ ...base, dataDir: tempDir(t), port: 0, appName: 'StreamDeckPlus' });
+  const svc = await startService({ ...base, dataDir: tempDir(t), port: 0, appName: 'Open Smart Buttons' });
   try {
     const state = await (await get(svc, '/api/state', svc.token)).json();
-    assert.equal(state.platform.host, 'StreamDeckPlus');
+    assert.equal(state.platform.host, 'Open Smart Buttons');
   } finally { assert.deepEqual(await svc.stop(), { saved: true }); }
 });
 
@@ -160,7 +160,7 @@ test('the CLI restarts on the same data directory after SIGKILL with no manual r
   const port = await freePort();
   const launch = () => new Promise<ChildProcess>((done, fail) => {
     const child = spawn(process.execPath, ['src/server/main.ts', '--no-hid', '--port', String(port), '--data', dir], {
-      env: { ...process.env, ANTHROPIC_API_KEY: '', STREAMDECK_CLAUDE_MODEL: '' }, stdio: ['ignore', 'pipe', 'pipe'],
+      env: { ...process.env, ANTHROPIC_API_KEY: '', OPEN_SMART_BUTTONS_CLAUDE_MODEL: '' }, stdio: ['ignore', 'pipe', 'pipe'],
     });
     let out = '';
     const timer = setTimeout(() => { child.kill('SIGKILL'); fail(new Error(`no editor link: ${out}`)); }, 15000);

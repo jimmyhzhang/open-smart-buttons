@@ -69,8 +69,8 @@ jobs:
           APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_P8 }}
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          SDP_GITHUB_OWNER: ${{ github.repository_owner }}
-          SDP_GITHUB_REPO: ${{ github.event.repository.name }}
+          OSB_GITHUB_OWNER: ${{ github.repository_owner }}
+          OSB_GITHUB_REPO: ${{ github.event.repository.name }}
         run: |
           if [ -n "$CSC_LINK" ] && [ -n "$APPLE_API_KEY_CONTENT" ]; then
             export APPLE_API_KEY="$RUNNER_TEMP/AuthKey.p8"
@@ -78,14 +78,14 @@ jobs:
             node scripts/build-electron.mjs --dist --arch ${{ matrix.arch }}
             echo "RELEASE_CHECK=--release" >> "$GITHUB_ENV"
           else
-            unset CSC_LINK CSC_KEY_PASSWORD SDP_GITHUB_OWNER SDP_GITHUB_REPO
+            unset CSC_LINK CSC_KEY_PASSWORD OSB_GITHUB_OWNER OSB_GITHUB_REPO
             node scripts/build-electron.mjs --dmg --arch ${{ matrix.arch }}
           fi
       - name: Check the packaged app
-        run: node scripts/check-app.mjs dist-app/mac*/StreamDeckPlus.app ${RELEASE_CHECK:-}
+        run: node scripts/check-app.mjs dist-app/mac*/"Open Smart Buttons.app" ${RELEASE_CHECK:-}
       - uses: actions/upload-artifact@v5
         with:
-          name: StreamDeckPlus-${{ matrix.arch }}
+          name: open-smart-buttons-${{ matrix.arch }}
           path: |
             dist-app/*.dmg
             dist-app/*.zip
@@ -119,6 +119,6 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           if [ "${GITHUB_REF_NAME#v}" != "$version" ]; then echo "Tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1; fi
           mkdir release
-          node scripts/merge-latest-mac.mjs release/latest-mac.yml artifacts/StreamDeckPlus-arm64/latest-mac.yml artifacts/StreamDeckPlus-x64/latest-mac.yml
+          node scripts/merge-latest-mac.mjs release/latest-mac.yml artifacts/open-smart-buttons-arm64/latest-mac.yml artifacts/open-smart-buttons-x64/latest-mac.yml
           cp artifacts/*/*.dmg artifacts/*/*.zip artifacts/*/*.blockmap release/
-          gh release create "$GITHUB_REF_NAME" --draft --title "StreamDeckPlus ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." release/*
+          gh release create "$GITHUB_REF_NAME" --draft --title "Open Smart Buttons ${GITHUB_REF_NAME#v}" --notes "See CHANGELOG.md." release/*

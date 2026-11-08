@@ -1,9 +1,17 @@
 {
-  "name": "streamdeckplus",
+  "name": "open-smart-buttons",
   "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "description": "Local macOS editor and USB controller for Stream Deck devices.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jimmyhzhang/open-smart-buttons.git"
+  },
+  "homepage": "https://github.com/jimmyhzhang/open-smart-buttons#readme",
+  "bugs": {
+    "url": "https://github.com/jimmyhzhang/open-smart-buttons/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=22.18"

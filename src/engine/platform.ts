@@ -40,7 +40,7 @@ export function hostAppName(): string {
   const map: Record<string, string> = {
     Apple_Terminal: 'Terminal', 'iTerm.app': 'iTerm', vscode: 'Visual Studio Code', ghostty: 'Ghostty', WarpTerminal: 'Warp',
   };
-  return map[t] ?? (t || 'the app that started StreamDeckPlus');
+  return map[t] ?? (t || 'the app that started Open Smart Buttons');
 }
 
 export interface Platform {

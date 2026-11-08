@@ -347,7 +347,7 @@ export function ButtonAgentPanel(p: Props) {
               {p.onOpenFolder ? <button className="primary" onClick={p.onOpenFolder}><Icon name="folder-open" size={15}/> Open folder</button>
                 : p.setupIssue && p.onConfigure ? <button className="primary" onClick={p.onConfigure}>Finish setup</button>
                 : p.canExecute || p.simulator ? <button className="secondary" disabled={busy || !!p.setupIssue} aria-busy={runningButton} onClick={() => void run()}>
-                  {runningButton ? <span className="sdp-spinner" aria-hidden="true" /> : <Icon name="play" size={15} />} {p.simulator ? 'Test' : 'Run'}
+                  {runningButton ? <span className="osb-spinner" aria-hidden="true" /> : <Icon name="play" size={15} />} {p.simulator ? 'Test' : 'Run'}
                 </button>
                 : !p.simulator ? <button className="secondary" onClick={() => void act('settings.update', { patch: { executeActions: true } })}>Enable actions</button> : null}
             </div>
@@ -356,7 +356,7 @@ export function ButtonAgentPanel(p: Props) {
           {p.backgroundAgent && p.agentTask && <section className="studio-run agent-task-result" aria-label="Prompt execution">
             <div className="studio-run-line">
               <span role="status">
-                {taskRunning ? <span className="sdp-spinner" aria-hidden="true" /> : <Icon name={p.agentTask.status === 'failed' ? 'circle-alert' : p.agentTask.status === 'cancelled' ? 'circle-stop' : 'circle-check'} size={15} />}
+                {taskRunning ? <span className="osb-spinner" aria-hidden="true" /> : <Icon name={p.agentTask.status === 'failed' ? 'circle-alert' : p.agentTask.status === 'cancelled' ? 'circle-stop' : 'circle-check'} size={15} />}
                 {{ running: 'Running prompt…', completed: 'Prompt completed', failed: 'Prompt failed', cancelled: 'Prompt stopped' }[p.agentTask.status]}
               </span>
               {taskRunning && <button className="ghost" disabled={pending === 'Stopping…'} onClick={() => void perform('Stopping…', async () => {

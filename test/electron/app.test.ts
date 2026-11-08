@@ -1,5 +1,5 @@
 // Electron end-to-end suite (plan section 7, milestone M2). Each test launches the dev app (`electron .`)
-// with --sim on its own temporary profile and never touches ~/.streamdeckplus, port 4417 or USB.
+// with --sim on its own temporary profile and never touches ~/.open-smart-buttons, port 4417 or USB.
 //   node --test --test-concurrency=1 test/electron/*.test.ts
 
 import { test } from 'node:test';
@@ -60,7 +60,7 @@ test('a killed service comes back on the same origin and the editor keeps its st
   await waitForEditor(page);
   const origin = new URL(page.url()).origin;
   // Choose Dark the way Settings does: the app's choice, mirrored into this window.
-  await page.evaluate(() => (window as unknown as { sdpNative: { setPref(k: string, v: unknown): Promise<unknown> } }).sdpNative.setPref('theme', 'dark'));
+  await page.evaluate(() => (window as unknown as { osbNative: { setPref(k: string, v: unknown): Promise<unknown> } }).osbNative.setPref('theme', 'dark'));
   await waitFor(() => page.evaluate(() => document.documentElement.dataset.theme === 'dark'), 3000, 'the editor did not follow the app theme');
 
   const started = Date.now();
@@ -72,7 +72,7 @@ test('a killed service comes back on the same origin and the editor keeps its st
   assert.ok(Date.now() - started < 4500, `reconnect took ${Date.now() - started} ms`);
   assert.equal(new URL(page.url()).origin, origin);
   assert.equal(await page.evaluate(() => document.documentElement.dataset.theme), 'dark');
-  assert.equal(await page.evaluate(() => localStorage.getItem('sdp.theme')), 'dark');
+  assert.equal(await page.evaluate(() => localStorage.getItem('osb.theme')), 'dark');
   assert.equal(await app.evaluate(({ nativeTheme }) => nativeTheme.themeSource), 'dark');
 }));
 
@@ -89,7 +89,7 @@ test('three crashes within a minute show Restart, which brings the editor back',
   kill(last.pid, 'SIGKILL');
 
   const status = await findPage(app, 'editor', 10_000).then(async (p) => {
-    await waitFor(() => p.url().startsWith('file:') && p.url().includes('status.html'), 10_000, `The status page did not appear (at ${p.url()}).`);
+    await waitFor(() => p.url().startsWith('osb://status/') && p.url().includes('status.html'), 10_000, `The status page did not appear (at ${p.url()}).`);
     return p;
   });
   const restart = status.getByRole('button', { name: 'Restart' });
@@ -152,11 +152,11 @@ test('the editor window is locked to the app', { timeout: TEST_TIMEOUT }, () => 
 
   // A download the editor did not create as a blob is cancelled.
   await app.evaluate(({ session }) => {
-    const g = globalThis as unknown as { sdpDownloads: { url: string; prevented: boolean; state?: string }[] };
-    g.sdpDownloads = [];
+    const g = globalThis as unknown as { osbDownloads: { url: string; prevented: boolean; state?: string }[] };
+    g.osbDownloads = [];
     session.defaultSession.on('will-download', (event, item) => {
       const record: { url: string; prevented: boolean; state?: string } = { url: item.getURL(), prevented: event.defaultPrevented };
-      g.sdpDownloads.push(record);
+      g.osbDownloads.push(record);
       // A prevented download's item is destroyed right away: getState() then throws.
       setTimeout(() => { try { record.state = item.getState(); } catch { record.state = 'destroyed'; } }, 200);
     });
@@ -164,13 +164,13 @@ test('the editor window is locked to the app', { timeout: TEST_TIMEOUT }, () => 
   await page.evaluate(() => {
     const a = document.createElement('a');
     a.href = 'data:text/plain,not-from-the-editor';
-    a.download = 'sdp-e2e-blocked.txt';
+    a.download = 'osb-e2e-blocked.txt';
     document.body.append(a);
     a.click();
     a.remove();
   });
   const downloads = await waitFor(async () => {
-    const list = await app.evaluate(() => (globalThis as unknown as { sdpDownloads: { url: string; prevented: boolean; state?: string }[] }).sdpDownloads);
+    const list = await app.evaluate(() => (globalThis as unknown as { osbDownloads: { url: string; prevented: boolean; state?: string }[] }).osbDownloads);
     return list.length && list[0]!.state ? list : null;
   }, 5000, 'the download never started');
   assert.equal(downloads.length, 1);
@@ -179,14 +179,14 @@ test('the editor window is locked to the app', { timeout: TEST_TIMEOUT }, () => 
 
   // The bridge is a fixed, frozen set of calls, and main refuses unknown commands.
   const bridge = await page.evaluate(() => {
-    const n = (window as unknown as { sdpNative: Record<string, unknown> }).sdpNative;
+    const n = (window as unknown as { osbNative: Record<string, unknown> }).osbNative;
     return { keys: Object.keys(n).sort(), frozen: Object.isFrozen(n), types: Object.values(n).map((v) => typeof v) };
   });
   assert.deepEqual(bridge.keys, ['command', 'contextMenu', 'getState', 'onMenu', 'onState', 'setApiKey', 'setPref']);
-  assert.equal(bridge.frozen, true, 'window.sdpNative is not frozen');
+  assert.equal(bridge.frozen, true, 'window.osbNative is not frozen');
   assert.ok(bridge.types.every((t) => t === 'function'));
   const rejected = await page.evaluate(async () => {
-    try { await (window as unknown as { sdpNative: { command(n: string): Promise<unknown> } }).sdpNative.command('nope'); return 'resolved'; }
+    try { await (window as unknown as { osbNative: { command(n: string): Promise<unknown> } }).osbNative.command('nope'); return 'resolved'; }
     catch (error) { return String((error as Error).message); }
   });
   assert.match(rejected, /Unknown command/);
@@ -196,8 +196,8 @@ test('a terminal service holding the data shows how to continue, then Try Again 
   const cli = await startCli(profile);
   const app = await launchApp(profile);
   const page = await openEditor(app);
-  await page.getByText('already running from Terminal').waitFor({ state: 'visible', timeout: 20_000 });
-  assert.ok(page.url().startsWith('file:'), `expected the status page, at ${page.url()}`);
+  await page.getByText('Your data folder is already in use.', { exact: true }).waitFor({ state: 'visible', timeout: 20_000 });
+  assert.ok(page.url().startsWith('osb://status/'), `expected the status page, at ${page.url()}`);
   await cli.stop();
   await waitFor(() => !lockExists(profile), 5000, 'the terminal service left its lock behind');
   await page.getByRole('button', { name: 'Try Again' }).click();
@@ -219,7 +219,7 @@ test('unreadable settings offer Repair, which keeps the original and loads the e
   const app = await launchApp(profile);
   const page = await openEditor(app);
   await page.getByText("couldn't be read").waitFor({ state: 'visible', timeout: 20_000 });
-  assert.ok(page.url().startsWith('file:'), `expected the status page, at ${page.url()}`);
+  assert.ok(page.url().startsWith('osb://status/'), `expected the status page, at ${page.url()}`);
   await stubConfirm(app);
   await page.getByRole('button', { name: 'Repair' }).click();
   await waitForEditor(page, 20_000);
@@ -235,7 +235,7 @@ test('settings that are not JSON at all show the recovery screen', { timeout: TE
   const app = await launchApp(profile);
   const page = await openEditor(app);
   await page.getByText("couldn't be read").waitFor({ state: 'visible', timeout: 20_000 });
-  assert.ok(page.url().startsWith('file:'), `expected the status page, at ${page.url()}`);
+  assert.ok(page.url().startsWith('osb://status/'), `expected the status page, at ${page.url()}`);
   for (const name of ['Repair', 'Show in Finder', 'Start Fresh']) {
     assert.equal(await page.getByRole('button', { name }).count(), 1, `missing ${name}`);
   }

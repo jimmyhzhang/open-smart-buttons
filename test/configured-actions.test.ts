@@ -20,7 +20,7 @@ const step = (type: string, settings: Record<string, unknown> = {}): ActionInsta
 const validateMulti = (steps: unknown) => validateActionSetup(ACTION_MAP.get('sd.multi')!.meta, { steps }, 'key', resolveMeta);
 
 async function setup(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-configured-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-configured-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();

@@ -55,7 +55,7 @@ export function PermissionBanner({ state, inSettings = false }: { state: AppStat
         </ul>
         {native
           ? <p className="muted small">Volume, Open and Website work without it. To allow the rest, open Settings ▸ Permissions.</p>
-          : <p className="muted small">StreamDeckPlus runs inside {host}, so macOS asks for {host}'s permission. Volume, Open and Website work without it. After changing macOS settings, press Check again. If access is still blocked, restart the app from the same host.</p>}
+          : <p className="muted small">Open Smart Buttons runs inside {host}, so macOS asks for {host}'s permission. Volume, Open and Website work without it. After changing macOS settings, press Check again. If access is still blocked, restart the app from the same host.</p>}
       </div>
       <div className="perm-actions">
         {native ? (

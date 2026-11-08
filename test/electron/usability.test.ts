@@ -17,7 +17,7 @@ test('first-run simulator setup leads to a complete manual key workflow at minim
     await onboarding.getByRole('heading', { name: "You're set." }).waitFor();
     await onboarding.getByRole('button', { name: 'Back', exact: true }).click();
     await onboarding.getByRole('button', { name: 'Use Simulator' }).click();
-    await onboarding.getByRole('button', { name: 'Open StreamDeckPlus' }).click();
+    await onboarding.getByRole('button', { name: 'Start using Open Smart Buttons' }).click();
 
     const page = await findPage(app, 'editor');
     page.on('pageerror', e => errors.push(e.message));

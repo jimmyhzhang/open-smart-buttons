@@ -1,10 +1,12 @@
-// electron-builder configuration for StreamDeckPlus for Mac. scripts/build-electron.mjs adds the signing
+// electron-builder configuration for Open Smart Buttons for Mac. scripts/build-electron.mjs adds the signing
 // identity, notarization and update channel from the environment; see docs/RELEASE.md.
+
+import { APP_NAME, APP_ID, PACKAGE_NAME } from './src/shared/brand.ts';
 
 /** @type {import('electron-builder').Configuration} */
 export default {
-  appId: 'ai.readingplus.streamdeckplus',
-  productName: 'StreamDeckPlus',
+  appId: APP_ID,
+  productName: APP_NAME,
   copyright: 'Copyright © 2026 Reading Plus AI LLC',
   directories: { output: 'dist-app', buildResources: 'build' },
 
@@ -44,14 +46,14 @@ export default {
     entitlementsInherit: 'build/entitlements.mac.plist',
     minimumSystemVersion: '13.0',
     darkModeSupport: true,
-    artifactName: 'StreamDeckPlus-${version}-${arch}.${ext}',
+    artifactName: `${PACKAGE_NAME}-\${version}-\${arch}.\${ext}`,
     notarize: false,
     extendInfo: {
-      NSAppleEventsUsageDescription: 'StreamDeckPlus uses System Events to press the keys and shortcuts you assign.',
+      NSAppleEventsUsageDescription: 'Open Smart Buttons uses System Events to press the keys and shortcuts you assign.',
     },
   },
   dmg: {
-    title: 'StreamDeckPlus ${version}',
+    title: 'Open Smart Buttons ${version}',
     contents: [{ x: 150, y: 190, type: 'file' }, { x: 390, y: 190, type: 'link', path: '/Applications' }],
     window: { width: 540, height: 380 },
   },

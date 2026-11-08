@@ -4,7 +4,7 @@
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import type { MenuCommand, NativeBridge, NativeState } from '../../src/shared/native.ts';
 
-export const native: NativeBridge | null = (globalThis as { sdpNative?: NativeBridge }).sdpNative ?? null;
+export const native: NativeBridge | null = (globalThis as { osbNative?: NativeBridge }).osbNative ?? null;
 export const isNative = native !== null;
 
 /** Which window this page is: the editor, or the app's Settings and onboarding windows. */

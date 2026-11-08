@@ -109,7 +109,7 @@
 .studio-action-bar > button { padding-inline: 8px; }
 .studio-key-actions { column-gap: 6px; }
 .studio-key-actions > :last-child { margin-left: auto; }
-.studio-key-actions .sdp-spinner { width: 15px; height: 15px; }
+.studio-key-actions .osb-spinner { width: 15px; height: 15px; }
 .studio-compose-bar { justify-content: space-between; }
 .studio-compose-bar select { max-width: 55%; min-height: 36px; border: 1px solid transparent; border-radius: 7px; background: transparent; padding: 5px 6px; }
 .studio-compose-bar select:hover { background: var(--panel); border-color: var(--line); }

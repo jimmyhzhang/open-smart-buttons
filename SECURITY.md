@@ -1,6 +1,6 @@
 # Security policy
 
-StreamDeckPlus runs a local service that can press keys and control apps on your Mac, so security reports are welcome.
+Open Smart Buttons runs a local service that can press keys and control apps on your Mac, so security reports are welcome.
 
 ## Reporting a vulnerability
 

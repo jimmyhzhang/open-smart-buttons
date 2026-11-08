@@ -22,8 +22,8 @@ const launchToken = new URLSearchParams(location.hash.slice(1)).get('session');
 const validLaunch = launchToken && /^[A-Za-z0-9_-]{43}$/.test(launchToken) ? launchToken : null;
 let sessionToken = validLaunch;
 try {
-  if (validLaunch) sessionStorage.setItem('sdp-session', validLaunch);
-  else sessionToken = sessionStorage.getItem('sdp-session');
+  if (validLaunch) sessionStorage.setItem('osb-session', validLaunch);
+  else sessionToken = sessionStorage.getItem('osb-session');
 } catch { /* The launch link still works with storage disabled. */ }
 if (validLaunch) {
   history.replaceState(null, '', location.pathname + location.search);
@@ -64,7 +64,7 @@ class Client {
   connect() {
     if (!sessionToken) return;
     const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-    const ws = new WebSocket(`${proto}://${location.host}/ws`, ['sdp.v1', `auth.${sessionToken}`]);
+    const ws = new WebSocket(`${proto}://${location.host}/ws`, ['osb.v1', `auth.${sessionToken}`]);
     this.ws = ws;
     ws.onopen = () => {
       this.connected = true;
@@ -76,7 +76,7 @@ class Client {
     ws.onclose = () => {
       this.connected = false;
       this.notify();
-      for (const p of this.pending.values()) p.reject(new Error('Disconnected from StreamDeckPlus'));
+      for (const p of this.pending.values()) p.reject(new Error('Disconnected from Open Smart Buttons'));
       this.pending.clear();
       // The app restarts the service on the same port within a second or two, so retry quickly at first.
       const delay = RETRY_DELAYS[this.retries] ?? RETRY_CAP;
@@ -151,7 +151,7 @@ class Client {
 
   rpc<T = any>(method: string, params: Record<string, unknown> = {}): Promise<T> {
     return new Promise((resolve, reject) => {
-      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return reject(new Error('Not connected to StreamDeckPlus'));
+      if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return reject(new Error('Not connected to Open Smart Buttons'));
       const id = this.nextId++;
       this.pending.set(id, { resolve, reject });
       this.ws.send(JSON.stringify({ id, method, params }));

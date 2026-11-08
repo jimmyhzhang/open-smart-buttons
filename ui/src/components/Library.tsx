@@ -128,8 +128,8 @@ export function Library(props: {
                 data-highlighted={selectedIndex === index || undefined} className="picker-item" draggable
                 onClick={() => props.onChoose(choice)}
                 onDragStart={event => {
-                  event.dataTransfer.setData('application/x-sdp-action', choice.type);
-                  event.dataTransfer.setData('application/x-sdp-preset', choice.id);
+                  event.dataTransfer.setData('application/x-osb-action', choice.type);
+                  event.dataTransfer.setData('application/x-osb-preset', choice.id);
                   event.dataTransfer.effectAllowed = 'copy';
                 }}>
                 <span className="picker-icon"><Icon name={choice.icon} size={18} /></span>

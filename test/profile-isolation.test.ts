@@ -21,7 +21,7 @@ function actionIds(profile: Profile): string[] {
 }
 
 async function boot(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-profile-isolation-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-profile-isolation-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();

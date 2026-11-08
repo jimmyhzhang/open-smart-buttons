@@ -1,5 +1,5 @@
 // Desktop app contract shared by the Electron main process (electron/) and the editor UI (ui/src/native.ts).
-// Types only. The browser editor never sees window.sdpNative.
+// Types only. The browser editor never sees window.osbNative.
 
 export type StartErrorKind = 'locked' | 'config-invalid' | 'port-in-use' | 'start-failed';
 
@@ -51,7 +51,7 @@ export interface NativeState {
   packaged: boolean;
   service: ServicePhase;
   prefs: PublicPrefs;
-  ai: { hasKey: boolean; model: string; provider: AiPreference; secureStorage: boolean };
+  ai: { hasKey: boolean; model: string; provider: AiPreference; secureStorage: boolean; keyNeedsReentry?: boolean };
   update: UpdateStatus;
   elgato: ElgatoStatus;
   dataDir: string;
@@ -71,7 +71,7 @@ export type MenuCommand =
 
 export interface ContextMenuItem { id?: string; label?: string; enabled?: boolean; separator?: boolean }
 
-/** window.sdpNative, exposed by electron/preload.cjs. */
+/** window.osbNative, exposed by electron/preload.cjs. */
 export interface NativeBridge {
   getState(): Promise<NativeState>;
   onState(fn: (state: NativeState) => void): () => void;

@@ -1,10 +1,10 @@
-// StreamDeckPlus desktop app: the main process is a supervisor only. It owns windows, menus, the menu
+// Open Smart Buttons desktop app: the main process is a supervisor only. It owns windows, menus, the menu
 // bar extra, preferences, the Keychain-held API key and updates. USB, rendering and Mac actions run in
 // the service utility process (service-entry.ts).
 
 import { app, BrowserWindow, clipboard, ipcMain, Menu, nativeTheme, Notification, shell, type IpcMainInvokeEvent, type MenuItemConstructorOptions } from 'electron';
 import { dirname, join, resolve } from 'node:path';
-import { homedir, release } from 'node:os';
+import { release } from 'node:os';
 import { existsSync, renameSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { ServiceHost } from './service-host.ts';
@@ -18,22 +18,25 @@ import { checkForUpdates, initUpdater, installUpdate, setAutomatic, updateReady,
 import { getWindow, initWindows, isAppUrl, reloadForPhase, sendToAll, showStatusPage, showWindow, visibleWindows, confirmDialog, type View } from './windows.ts';
 import type { NativeState, Prefs } from './protocol.ts';
 import type { NativeCommand, PrefKey } from '../src/shared/native.ts';
+import { APP_NAME } from '../src/shared/brand.ts';
+import { appDataDir, desktopUserDataDir, profileDirectoryArg } from '../src/engine/app-compat.ts';
+import { registerStatusScheme } from './status-protocol.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const APP_NAME = 'StreamDeckPlus';
 app.setName(APP_NAME);
+registerStatusScheme();
 
 // ---- Launch options ------------------------------------------------------------------------------
-// --sdp-profile-dir=DIR isolates preferences, the key, logs and data (tests, smoke checks).
+// --osb-profile-dir=DIR isolates preferences, the key, logs and data (tests, smoke checks).
 // --sim runs with a simulated Stream Deck + and no USB. --smoke runs the packaged self-check and exits.
 const argv = process.argv.slice(1);
-const argValue = (name: string) => argv.find((a) => a.startsWith(`--${name}=`))?.slice(name.length + 3);
-const profileDir = argValue('sdp-profile-dir');
+const profileDir = profileDirectoryArg(argv);
 const simMode = argv.includes('--sim');
 const smoke = argv.includes('--smoke');
 if (profileDir) { app.setPath('userData', resolve(profileDir)); disableLoginItems(); }
+else app.setPath('userData', desktopUserDataDir(app.getPath('appData')));
 const dataDir = profileDir ? join(resolve(profileDir), 'data')
-  : process.env.STREAMDECKPLUS_DATA ? resolve(process.env.STREAMDECKPLUS_DATA) : join(homedir(), '.streamdeckplus');
+  : resolve(appDataDir());
 initLog(profileDir ? join(resolve(profileDir), 'logs') : app.getPath('logs'));
 delete process.env.ANTHROPIC_API_KEY; // never inherited by anything this app starts
 
@@ -77,7 +80,8 @@ async function main() {
   });
 
   await app.whenReady();
-  log('main', `StreamDeckPlus ${app.getVersion()} starting (packaged: ${app.isPackaged}, macOS ${process.getSystemVersion?.() ?? release()}, ${process.arch})`);
+  app.setAboutPanelOptions({ applicationName: APP_NAME, applicationVersion: app.getVersion(), copyright: 'Copyright © 2026 Reading Plus AI LLC · MIT License' });
+  log('main', `Open Smart Buttons ${app.getVersion()} starting (packaged: ${app.isPackaged}, macOS ${process.getSystemVersion?.() ?? release()}, ${process.arch})`);
 
   if (smoke) { await runSmoke(host); return; }
 
@@ -99,12 +103,12 @@ async function main() {
     onWindowsChanged: () => { syncDock(); refreshMenus(); },
     onEditorClose: (event) => {
       if (quitting) return;
-      // Closing the editor hides it: StreamDeckPlus keeps running the deck.
+      // Closing the editor hides it: Open Smart Buttons keeps running the deck.
       event.preventDefault();
       getWindow('editor')?.hide();
       if (showInMenuBar() && !prefs.value.closeNoticeShown) {
         prefs.set('closeNoticeShown', true);
-        if (Notification.isSupported()) new Notification({ title: APP_NAME, body: 'StreamDeckPlus is still running in the menu bar.', silent: true }).show();
+        if (Notification.isSupported()) new Notification({ title: APP_NAME, body: 'Open Smart Buttons is still running in the menu bar.', silent: true }).show();
       }
     },
   });
@@ -124,12 +128,12 @@ async function main() {
       aiProvider: prefs.value.aiProvider,
       theme: prefs.value.theme,
     },
-    ai: { hasKey: secrets.has(), model: prefs.value.model, provider: prefs.value.aiProvider, secureStorage: secrets.available() },
+    ai: { hasKey: secrets.has(), model: prefs.value.model, provider: prefs.value.aiProvider, secureStorage: secrets.available(), keyNeedsReentry: secrets.needsReentry() },
     update: updateStatus(),
     elgato: elgatoStatus(),
     dataDir,
   });
-  const broadcast = () => sendToAll('sdp:native-state', snapshot());
+  const broadcast = () => sendToAll('osb:native-state', snapshot());
 
   // ---- Menu bar extra and app menu -------------------------------------------------------------
   const rpc = (method: string, params: Record<string, unknown> = {}) => host.rpc(method, params).catch((error: Error) => {
@@ -152,7 +156,7 @@ async function main() {
     const deliver = () => {
       // A file picker needs a user gesture in the page; a menu click is not one, so grant it here.
       if (command === 'profile.import') void clickImport(wc);
-      else wc.send('sdp:menu', command);
+      else wc.send('osb:menu', command);
     };
     if (wc.isLoading()) wc.once('did-finish-load', deliver); else deliver();
   };
@@ -162,7 +166,7 @@ async function main() {
     const ready = host.phase.phase === 'ready';
     const device = primaryDevice(state);
     const items: MenuItemConstructorOptions[] = [];
-    const headline = !ready ? (host.phase.phase === 'fatal' || host.phase.phase === 'error' ? 'StreamDeckPlus needs attention' : 'Starting…')
+    const headline = !ready ? (host.phase.phase === 'fatal' || host.phase.phase === 'error' ? 'Open Smart Buttons needs attention' : 'Starting…')
       : state?.platform.hidError ? "Device support didn't load"
       : device ? `${device.modelName} — Connected` : 'No deck connected';
     items.push({ label: headline, enabled: false });
@@ -184,7 +188,7 @@ async function main() {
       });
     }
     items.push({ type: 'separator' });
-    items.push({ label: 'Open StreamDeckPlus', click: () => showWindow('editor') });
+    items.push({ label: 'Show Open Smart Buttons', click: () => showWindow('editor') });
     if (ready && state) {
       items.push({
         label: 'Pause Mac Actions', type: 'checkbox', checked: !state.config.settings.executeActions,
@@ -193,7 +197,7 @@ async function main() {
     }
     const attention: MenuItemConstructorOptions[] = [];
     if (ready && state?.platform.permissions.some((p) => p.ok === false) && state.config.settings.executeActions) {
-      attention.push({ label: '⚠ Allow StreamDeckPlus to press keys…', click: () => openSettings('permissions') });
+      attention.push({ label: '⚠ Allow Open Smart Buttons to press keys…', click: () => openSettings('permissions') });
     }
     const elgato = elgatoStatus();
     if (elgato.running && !device) {
@@ -206,7 +210,7 @@ async function main() {
       { type: 'separator' },
       { label: 'Settings…', accelerator: 'Command+,', click: () => openSettings() },
       { label: 'Check for Updates…', enabled: updateStatus().state !== 'unavailable', click: () => checkAndShow() },
-      { label: 'Quit StreamDeckPlus', accelerator: 'Command+Q', click: () => app.quit() },
+      { label: 'Quit Open Smart Buttons', accelerator: 'Command+Q', click: () => app.quit() },
     );
     return items;
   }
@@ -243,7 +247,7 @@ async function main() {
   function openSettings(tab?: string) {
     const win = showWindow('settings');
     if (tab) {
-      const send = () => win.webContents.send('sdp:menu', `settings.${tab}`);
+      const send = () => win.webContents.send('osb:menu', `settings.${tab}`);
       if (win.webContents.isLoading()) win.webContents.once('did-finish-load', send); else send();
     }
   }
@@ -261,7 +265,7 @@ async function main() {
   function diagnostics(): string {
     const s = host.appState;
     const lines = [
-      `StreamDeckPlus ${app.getVersion()} (${app.isPackaged ? 'app' : 'development'})`,
+      `Open Smart Buttons ${app.getVersion()} (${app.isPackaged ? 'app' : 'development'})`,
       `macOS ${process.getSystemVersion?.() ?? release()} on ${process.arch}; Electron ${process.versions.electron}`,
       `Service: ${host.phase.phase}`,
       `USB support: ${s ? (s.platform.hidAvailable ? 'loaded' : s.platform.hidError ? `failed (${s.platform.hidError})` : 'off') : 'unknown'}`,
@@ -339,7 +343,7 @@ async function main() {
   const commands: Record<NativeCommand, (arg: unknown, event: IpcMainInvokeEvent) => unknown> = {
     'service.restart': () => host.restart(),
     'service.repair': async () => {
-      const ok = await confirmDialog('Repair your settings?', 'StreamDeckPlus writes a repaired copy and keeps the original folder next to it.', 'Repair');
+      const ok = await confirmDialog('Repair your settings?', 'Open Smart Buttons writes a repaired copy and keeps the original folder next to it.', 'Repair');
       return ok ? host.repair() : { ok: false, message: '' };
     },
     'service.startFresh': async () => {
@@ -380,20 +384,20 @@ async function main() {
     },
   };
 
-  ipcMain.handle('sdp:state', (event) => { guard(event); return snapshot(); });
-  ipcMain.handle('sdp:command', (event, name: unknown, arg: unknown) => {
+  ipcMain.handle('osb:state', (event) => { guard(event); return snapshot(); });
+  ipcMain.handle('osb:command', (event, name: unknown, arg: unknown) => {
     guard(event);
     const fn = typeof name === 'string' && Object.hasOwn(commands, name) ? commands[name as NativeCommand] : undefined;
     if (!fn) throw new Error('Unknown command.');
     return fn(arg, event);
   });
-  ipcMain.handle('sdp:set-pref', (event, key: unknown, value: unknown) => {
+  ipcMain.handle('osb:set-pref', (event, key: unknown, value: unknown) => {
     guard(event);
     if (typeof key !== 'string' || !(PREF_KEYS as readonly string[]).includes(key)) throw new Error('Unknown setting.');
     applyPref(key as PrefKey, value);
     return snapshot();
   });
-  ipcMain.handle('sdp:set-api-key', (event, key: unknown) => {
+  ipcMain.handle('osb:set-api-key', (event, key: unknown) => {
     guard(event);
     if (key !== null && typeof key !== 'string') throw new Error('Expected a key.');
     secrets.set(key);
@@ -401,7 +405,7 @@ async function main() {
     broadcast();
     return snapshot();
   });
-  ipcMain.handle('sdp:context-menu', (event, items: unknown) => {
+  ipcMain.handle('osb:context-menu', (event, items: unknown) => {
     guard(event);
     if (!Array.isArray(items) || items.length > 20) throw new Error('Bad menu.');
     const win = BrowserWindow.fromWebContents(event.sender);

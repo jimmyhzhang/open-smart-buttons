@@ -1,7 +1,7 @@
 // Status page shown while the editor cannot load: starting, restarting, fatal and startup errors.
 'use strict';
 const root = document.getElementById('root');
-const native = window.sdpNative;
+const native = window.osbNative;
 
 function el(tag, attrs, ...children) {
   const node = document.createElement(tag);
@@ -41,7 +41,7 @@ function render(state) {
   root.replaceChildren();
   lastNote = null;
   if (s.phase === 'starting' || s.phase === 'ready' || s.phase === 'stopping') {
-    root.append(el('div', { class: 'spinner', 'aria-hidden': 'true' }), el('h1', {}, s.phase === 'stopping' ? 'Quitting…' : 'Starting StreamDeckPlus…'));
+    root.append(el('div', { class: 'spinner', 'aria-hidden': 'true' }), el('h1', {}, s.phase === 'stopping' ? 'Quitting…' : 'Starting Open Smart Buttons…'));
     return;
   }
   if (s.phase === 'restarting') {
@@ -50,7 +50,7 @@ function render(state) {
   }
   const actions = el('div', { class: 'actions' });
   if (s.phase === 'fatal') {
-    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '!'), el('h1', {}, 'StreamDeckPlus stopped unexpectedly.'),
+    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '!'), el('h1', {}, 'Open Smart Buttons stopped unexpectedly.'),
       el('p', {}, 'It restarted several times in a row. The log may say why.'));
     actions.append(button('Restart', 'service.restart', true), button('Show Log', 'logs.show'));
   } else if (s.kind === 'config-invalid') {
@@ -59,11 +59,11 @@ function render(state) {
       el('p', { class: 'detail' }, s.message));
     actions.append(button('Repair', 'service.repair', true), button('Show in Finder', 'data.show'), button('Start Fresh', 'service.startFresh'));
   } else if (s.kind === 'locked') {
-    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '⌘'), el('h1', {}, 'StreamDeckPlus is already running from Terminal.'),
-      el('p', {}, 'Quit it there, then try again.'));
+    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '⌘'), el('h1', {}, 'Your data folder is already in use.'),
+      el('p', {}, 'Close the earlier app or stop its Terminal server, then try again.'));
     actions.append(button('Try Again', 'service.restart', true));
   } else {
-    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '!'), el('h1', {}, "StreamDeckPlus couldn't start."),
+    root.append(el('div', { class: 'glyph', 'aria-hidden': 'true' }, '!'), el('h1', {}, "Open Smart Buttons couldn't start."),
       el('p', { class: 'detail' }, s.message));
     actions.append(button('Try Again', 'service.restart', true), button('Show Log', 'logs.show'));
   }

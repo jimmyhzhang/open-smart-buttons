@@ -1,4 +1,4 @@
-// The application menu. Editor commands go to the editor renderer over `sdp:menu`; the renderer's own
+// The application menu. Editor commands go to the editor renderer over `osb:menu`; the renderer's own
 // keydown handler keeps deck ⌘C/⌘V/⌘X, so the Edit menu uses standard roles only.
 
 import { app, Menu, type MenuItemConstructorOptions } from 'electron';

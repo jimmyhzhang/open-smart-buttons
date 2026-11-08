@@ -11,7 +11,7 @@ import { Store } from '../../src/engine/store.ts';
 import type { ButtonProposal } from '../../src/shared/button-agent.ts';
 const delay=(ms:number)=>new Promise(r=>setTimeout(r,ms));
 test('real HTTP/WebSocket → bounded inference request → validated button; modify, cancel, undo and restart', {timeout:30000},async t=>{
- const dir=await mkdtemp(join(tmpdir(),'sdp-agent-e2e-'));
+ const dir=await mkdtemp(join(tmpdir(),'osb-agent-e2e-'));
  const proposal: ButtonProposal = {
   title: 'Generated',
   icon: 'hash',
@@ -48,7 +48,7 @@ test('real HTTP/WebSocket → bounded inference request → validated button; mo
  let authorization = '';
  const start = async () => {
    child = spawn(process.execPath, ['--import', './test/e2e/mock-inference.mjs', 'src/server/main.ts', '--no-hid', '--port', String(port), '--data', dir], {
-     env: { ...process.env, STREAMDECK_AI: 'api', STREAMDECK_LOCAL_ONLY: '1', ANTHROPIC_API_KEY: 'isolated-test-key', STREAMDECK_CLAUDE_MODEL: 'fixture-model', TEST_INFERENCE_PORT: String(inferencePort) },
+     env: { ...process.env, OPEN_SMART_BUTTONS_AI: 'api', OPEN_SMART_BUTTONS_LOCAL_ONLY: '1', ANTHROPIC_API_KEY: 'isolated-test-key', OPEN_SMART_BUTTONS_CLAUDE_MODEL: 'fixture-model', TEST_INFERENCE_PORT: String(inferencePort) },
      stdio: 'ignore',
    });
    const tokenFile = join(dir, `session-${port}.token`);

@@ -1,4 +1,4 @@
-// Main-process log: ~/Library/Logs/StreamDeckPlus/StreamDeckPlus.log, rotated at 2 MB (one backup).
+// Main-process log: ~/Library/Logs/Open Smart Buttons/Open Smart Buttons.log, rotated at 2 MB (one backup).
 // Never pass credentials here: launch URLs carry the browser credential in their fragment.
 
 import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
@@ -9,7 +9,7 @@ let file = '';
 
 export function initLog(dir: string): string {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
-  file = join(dir, 'StreamDeckPlus.log');
+  file = join(dir, 'Open Smart Buttons.log');
   return file;
 }
 

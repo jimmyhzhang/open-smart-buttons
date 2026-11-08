@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const nm = join(root, 'node_modules');
 const lines = [
-  'StreamDeckPlus for Mac: notices for native components',
+  'Open Smart Buttons for Mac: notices for native components',
   '',
   'The app bundles prebuilt native modules. Their compiled-in components and declared licenses follow.',
   'Electron and Chromium notices are in LICENSE.electron.txt and LICENSES.chromium.html in this folder.',

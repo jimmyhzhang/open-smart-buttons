@@ -182,7 +182,7 @@ function PlugIn({ state, headingRef, primaryRef, next, previous, useSimulator }:
   if (usb) {
     status = <StatusLine tone="ok" icon="check">{usb.modelName} is connected.</StatusLine>;
   } else if (hidError) {
-    status = <StatusLine tone="danger" icon="circle-alert">Device support didn't load. Reinstall StreamDeckPlus.</StatusLine>;
+    status = <StatusLine tone="danger" icon="circle-alert">Device support didn't load. Reinstall Open Smart Buttons.</StatusLine>;
   } else if (blocked) {
     status = (
       <div className="onb-callout">
@@ -190,7 +190,7 @@ function PlugIn({ state, headingRef, primaryRef, next, previous, useSimulator }:
           <strong>{elgatoName} is using your deck.</strong>
           <span>{elgato?.reopened
             ? 'Stream Deck reopened. Turn off its Open at Login.'
-            : 'Quit it so StreamDeckPlus can connect.'}</span>
+            : 'Quit it so Open Smart Buttons can connect.'}</span>
         </div>
         <button type="button" className="onb-secondary" onClick={quitElgato} disabled={quitting || !native}>
           {quitting ? 'Connecting…' : 'Quit It and Connect'}
@@ -312,7 +312,7 @@ function Permissions({ state, headingRef, primaryRef, next, previous }: StepProp
       index={2}
       previous={previous}
       headingRef={headingRef}
-      title="Let StreamDeckPlus press keys for you."
+      title="Let Open Smart Buttons press keys for you."
       body="Optional. Keys that send shortcuts or type text need your Mac's permission."
       footer={<Primary label={actionsOn ? 'Continue' : 'Continue Without Access'} onClick={next} primaryRef={primaryRef} />}
     >
@@ -377,8 +377,8 @@ function Finish({ headingRef, primaryRef, previous, skippedPermissions }: StepPr
       headingRef={headingRef}
       hero={<div className="onb-done" aria-hidden><Icon name="check" size={28} /></div>}
       title="You're set."
-      body="Pick how StreamDeckPlus fits into your day. You can change this in Settings."
-      footer={<Primary label="Open StreamDeckPlus" onClick={finish} busy={busy} primaryRef={primaryRef} />}
+      body="Pick how Open Smart Buttons fits into your day. You can change this in Settings."
+      footer={<Primary label="Start using Open Smart Buttons" onClick={finish} busy={busy} primaryRef={primaryRef} />}
     >
       <div className="onb-group">
         <label className="onb-row onb-row-toggle">
@@ -392,7 +392,7 @@ function Finish({ headingRef, primaryRef, previous, skippedPermissions }: StepPr
           <span className="onb-row-text">
             <span className="onb-row-label">Show in menu bar</span>
             <span className="onb-row-detail">
-              {showInMenuBar ? 'Switch profiles and brightness from the menu bar.' : 'StreamDeckPlus stays in the Dock instead.'}
+              {showInMenuBar ? 'Switch profiles and brightness from the menu bar.' : 'Open Smart Buttons stays in the Dock instead.'}
             </span>
           </span>
           <Switch checked={showInMenuBar} onChange={setShowInMenuBar} />

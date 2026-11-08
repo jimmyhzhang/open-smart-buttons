@@ -1,4 +1,4 @@
-/* StreamDeckPlus — a workbench for a physical device.
+/* Open Smart Buttons — a workbench for a physical device.
    Machined-aluminum surface, graphite hardware as the hero, one signal-LED teal for state. */
 
 :root {
@@ -585,16 +585,16 @@ button.link { color: var(--signal); margin-left: 8px; text-decoration: underline
   position: fixed; inset: 0; z-index: 90; display: grid; place-items: center; cursor: progress;
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   /* Short blips never flash: the overlay fades in only if the drop lasts. */
-  animation: sdp-fade-in 180ms ease 350ms both;
+  animation: osb-fade-in 180ms ease 350ms both;
 }
 .reconnect-card {
   display: inline-flex; align-items: center; gap: 10px; padding: 9px 16px; border-radius: 99px;
   background: var(--panel); border: 1px solid var(--line); box-shadow: var(--shadow-pop); font-weight: 550; color: var(--ink);
 }
-.sdp-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--signal); animation: sdp-spin 800ms linear infinite; }
-@keyframes sdp-spin { to { transform: rotate(360deg); } }
-@keyframes sdp-fade-in { from { opacity: 0; } }
-@media (prefers-reduced-motion: reduce) { .sdp-spinner { animation-duration: 2.4s; } .reconnect-overlay { animation-duration: 1ms; } }
+.osb-spinner { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--line); border-top-color: var(--signal); animation: osb-spin 800ms linear infinite; }
+@keyframes osb-spin { to { transform: rotate(360deg); } }
+@keyframes osb-fade-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .osb-spinner { animation-duration: 2.4s; } .reconnect-overlay { animation-duration: 1ms; } }
 
 /* ---------- the app's empty state ---------- */
 .native-no-device { max-width: 460px; margin-inline: auto; }

@@ -8,7 +8,7 @@ import { Store, uid } from '../src/engine/store.ts';
 import { newInstance } from '../src/engine/actions.ts';
 
 test('recovery writes a validated copy without changing the original config bytes', t => {
-  const root = mkdtempSync(join(tmpdir(), 'sdp-recover-test-'));
+  const root = mkdtempSync(join(tmpdir(), 'osb-recover-test-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const source = new Store(join(root, 'source'), true);
   const profile = source.config.profiles[0]!;
@@ -44,7 +44,7 @@ test('recovery writes a validated copy without changing the original config byte
 });
 
 test('ambiguous ownership leaves source bytes and output directory untouched', t => {
-  const root = mkdtempSync(join(tmpdir(), 'sdp-recover-ambiguous-'));
+  const root = mkdtempSync(join(tmpdir(), 'osb-recover-ambiguous-'));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const store = new Store(join(root, 'source'), true);
   const profile = store.config.profiles[0]!;

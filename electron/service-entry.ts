@@ -1,4 +1,4 @@
-// Utility process entry: runs the StreamDeckPlus service for the desktop app.
+// Utility process entry: runs the Open Smart Buttons service for the desktop app.
 // The main process talks to it only over parentPort. Credentials and the API key arrive in messages,
 // never in argv or the environment, so `ps eww` shows neither.
 

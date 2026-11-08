@@ -51,7 +51,7 @@ export interface Profile {
 
 /** A fresh temporary profile. `prefs` pre-writes prefs.json; `setup` can seed the data directory. */
 export async function makeProfile(opts: { prefs?: Record<string, unknown>; setup?: (dataDir: string) => Promise<void> | void } = {}): Promise<Profile> {
-  const dir = await mkdtemp(join(tmpdir(), 'sdp-electron-'));
+  const dir = await mkdtemp(join(tmpdir(), 'osb-electron-'));
   const dataDir = join(dir, 'data');
   if (opts.prefs) await writeFile(join(dir, 'prefs.json'), JSON.stringify(opts.prefs));
   if (opts.setup) { await mkdir(dataDir, { recursive: true }); await opts.setup(dataDir); }
@@ -59,7 +59,7 @@ export async function makeProfile(opts: { prefs?: Record<string, unknown>; setup
   const apps: ElectronApplication[] = [];
   let cleaned = false;
   const profile: Profile & { apps: ElectronApplication[] } = {
-    dir, dataDir, logFile: join(dir, 'logs', 'StreamDeckPlus.log'), apps,
+    dir, dataDir, logFile: join(dir, 'logs', 'Open Smart Buttons.log'), apps,
     track: (c) => { children.push(c); },
     async cleanup() {
       if (cleaned) return;
@@ -90,7 +90,7 @@ export async function launchApp(profile: Profile, extraArgs: string[] = []): Pro
   for (const [k, v] of Object.entries(process.env)) if (v !== undefined && k !== 'ELECTRON_RUN_AS_NODE') env[k] = v;
   const app = await electron.launch({
     executablePath: electronBinary,
-    args: ['.', `--sdp-profile-dir=${profile.dir}`, '--sim', ...extraArgs],
+    args: ['.', `--osb-profile-dir=${profile.dir}`, '--sim', ...extraArgs],
     cwd: root,
     env,
     timeout: 30_000,
@@ -143,7 +143,7 @@ export type ViewName = 'editor' | 'settings' | 'onboarding';
 
 /** True when a page URL belongs to `view`: the service origin (?view=…) or the status page. */
 export function isView(url: string, view: ViewName): boolean {
-  if (url.startsWith('file:')) return url.includes('status.html') && url.includes(`view=${view}`);
+  if (url.startsWith('osb://status/')) return url.includes('status.html') && url.includes(`view=${view}`);
   if (!url.startsWith('http://127.0.0.1:')) return false;
   const params = new URL(url).searchParams;
   return view === 'editor' ? !params.has('view') : params.get('view') === view;

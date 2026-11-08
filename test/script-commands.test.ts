@@ -7,7 +7,7 @@ import { buildScriptCommand, inspectScript, prepareScriptCommand, runScript } fr
 import { encodeScriptArguments, validateScriptArguments } from '../src/shared/script-arguments.ts';
 
 async function fixture(t: { after(fn: () => Promise<void>): void }, text: string, executable = true): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'sdp-script-'));
+  const dir = await mkdtemp(join(tmpdir(), 'osb-script-'));
   t.after(() => rm(dir, { recursive: true, force: true }));
   const path = join(dir, 'user script with spaces.sh');
   await writeFile(path, text);

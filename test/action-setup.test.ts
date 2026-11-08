@@ -28,7 +28,7 @@ class RecordingPlatform extends DryRunPlatform {
 }
 
 async function boot(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-action-setup-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-action-setup-'));
   const scriptFile = join(dir, 'fixture.sh');
   writeFileSync(scriptFile, '#!/bin/sh\nprintf "%s" "$@"\n');
   chmodSync(scriptFile, 0o755);

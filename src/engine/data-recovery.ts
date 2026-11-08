@@ -22,7 +22,7 @@ export function recoverDataDir(sourceDir: string, outputDir: string): RecoveryRe
   const recovered = config.profiles.map(recoverProfile);
   config.profiles = recovered.map(result => result.profile);
 
-  const staged = mkdtempSync(join(dirname(output), '.sdp-recovery-'));
+  const staged = mkdtempSync(join(dirname(output), '.osb-recovery-'));
   try {
     writeFileSync(join(staged, 'config.original.json'), bytes, { flag: 'wx', mode: 0o600 });
     writeFileSync(join(staged, 'config.json'), JSON.stringify(config, null, 2), { flag: 'wx', mode: 0o600 });

@@ -86,7 +86,7 @@ export function TopBar(p: Props) {
     if (f.name.endsWith('.json')) {
       let data: unknown;
       try { data = JSON.parse(new TextDecoder().decode(buf)); }
-      catch { toast("That file isn't a profile StreamDeckPlus can read.", 'error'); return; }
+      catch { toast("That file isn't a profile Open Smart Buttons can read.", 'error'); return; }
       const id = await act<string>('profiles.importJson', { data });
       if (id && d) await act('session.setProfile', { deviceId: d.id, profileId: id });
       return;
@@ -104,7 +104,7 @@ export function TopBar(p: Props) {
     const blob = new Blob([JSON.stringify(profile, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `${profile.name.replace(/[^\w -]+/g, '')}.sdplus.json`;
+    a.download = `${profile.name.replace(/[^\w -]+/g, '')}.osb.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
   };
@@ -144,7 +144,7 @@ export function TopBar(p: Props) {
   return (
     <header className="topbar">
       {!isNative && (
-        <div className="brand" aria-label="StreamDeckPlus">
+        <div className="brand" aria-label="Open Smart Buttons">
           <svg viewBox="0 0 32 32" width="22" height="22" aria-hidden>
             <rect x="3" y="5" width="26" height="22" rx="5" fill="currentColor" opacity=".9" />
             <rect x="7" y="9" width="7" height="6" rx="1.5" fill="var(--signal)" />
@@ -152,7 +152,7 @@ export function TopBar(p: Props) {
             <circle cx="10" cy="21" r="2.5" fill="var(--bg)" />
             <circle cx="22" cy="21" r="2.5" fill="var(--bg)" />
           </svg>
-          <span>StreamDeckPlus</span>
+          <span>Open Smart Buttons</span>
         </div>
       )}
 
@@ -265,7 +265,7 @@ function DeviceMenu(p: Props & Actions & { close(): void }) {
             ) : null}
           </div>
         ))}
-      {p.state.platform.hidError ? <p className="muted small pad-x">USB support couldn’t start. Restart StreamDeckPlus to try again.</p> : null}
+      {p.state.platform.hidError ? <p className="muted small pad-x">USB support couldn’t start. Restart Open Smart Buttons to try again.</p> : null}
       {connecting && <p role="status" className="muted small pad-x">Reconnecting your device…</p>}
       {d && <div className="menu-row connection-controls">
             {d.kind === 'sim' ? (

@@ -45,12 +45,12 @@ export function PagesBar({ device, profile, editable }: { device: DeviceSummary;
                 draggable={editable && editing !== id}
                 onDragStart={(e) => {
                   setDragId(id);
-                  e.dataTransfer.setData('application/x-sdp-page', id);
+                  e.dataTransfer.setData('application/x-osb-page', id);
                 }}
                 onDragEnd={() => setDragId(null)}
-                onDragOver={(e) => e.dataTransfer.types.includes('application/x-sdp-page') && e.preventDefault()}
+                onDragOver={(e) => e.dataTransfer.types.includes('application/x-osb-page') && e.preventDefault()}
                 onDrop={(e) => {
-                  const from = e.dataTransfer.getData('application/x-sdp-page');
+                  const from = e.dataTransfer.getData('application/x-osb-page');
                   if (!editable || !from || from === id) return;
                   const order = profile.pageOrder.filter((x) => x !== from);
                   order.splice(order.indexOf(id) + (profile.pageOrder.indexOf(from) < i ? 1 : 0), 0, from);

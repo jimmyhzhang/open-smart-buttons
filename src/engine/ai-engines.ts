@@ -21,7 +21,7 @@ export function isAiPreference(value: unknown): value is AiPreference {
   return value === 'auto' || (AI_ENGINE_ORDER as readonly unknown[]).includes(value);
 }
 
-/** Set from Settings ▸ AI in the app, or STREAMDECK_AI from Terminal. Unknown values mean automatic. */
+/** Set from Settings ▸ AI in the app, or OPEN_SMART_BUTTONS_AI from Terminal. Unknown values mean automatic. */
 export function setAiPreference(value: unknown): void {
   preference = isAiPreference(value) ? value : 'auto';
 }

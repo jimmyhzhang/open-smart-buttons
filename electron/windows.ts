@@ -5,6 +5,7 @@ import { app, BrowserWindow, dialog, nativeTheme, screen, session, type WebConte
 import { join } from 'node:path';
 import { homedir } from 'node:os';
 import { log } from './log.ts';
+import { installStatusProtocol, isStatusUrl, statusUrl } from './status-protocol.ts';
 
 export type View = 'editor' | 'settings' | 'onboarding';
 
@@ -27,6 +28,7 @@ let ctx: WindowContext;
 
 export function initWindows(context: WindowContext): void {
   ctx = context;
+  installStatusProtocol(context.here);
   const ses = session.defaultSession;
   ses.setPermissionRequestHandler((_wc, permission, callback, details) => {
     callback(permission === 'clipboard-sanitized-write' && isAppUrl(details.requestingUrl));
@@ -44,19 +46,12 @@ export function initWindows(context: WindowContext): void {
   });
 }
 
-const statusPage = () => join(ctx.here, 'status.html');
-
 /** True for the service origin and the bundled status page. */
 export function isAppUrl(url: string | undefined | null): boolean {
   if (!url) return false;
   const origin = ctx.origin();
   if (origin && (url === origin || url.startsWith(`${origin}/`))) return true;
-  try {
-    const u = new URL(url);
-    return u.protocol === 'file:' && decodeURIComponent(u.pathname) === statusPage();
-  } catch {
-    return false;
-  }
+  return isStatusUrl(url);
 }
 
 function lockdown(wc: WebContents) {
@@ -120,7 +115,7 @@ export function showWindow(view: View): BrowserWindow {
       ...size,
       ...(saved ?? {}),
       show: false,
-      title: view === 'settings' ? 'Settings' : view === 'onboarding' ? 'Welcome to StreamDeckPlus' : 'StreamDeckPlus',
+      title: view === 'settings' ? 'Settings' : view === 'onboarding' ? 'Welcome to Open Smart Buttons' : 'Open Smart Buttons',
       titleBarStyle: view === 'editor' ? 'hiddenInset' : 'default',
       trafficLightPosition: view === 'editor' ? { x: 18, y: 20 } : undefined,
       fullscreenable: view === 'editor',
@@ -170,25 +165,22 @@ export function showWindow(view: View): BrowserWindow {
   return win;
 }
 
-function targetFor(view: View): { url: string } | { file: string; query: Record<string, string> } {
+function targetFor(view: View): string {
   const url = ctx.url();
-  if (!url) return { file: statusPage(), query: { view } };
-  if (view === 'editor') return { url };
+  if (!url) return statusUrl(view);
+  if (view === 'editor') return url;
   const [base, fragment] = url.split('#');
-  return { url: `${base}?view=${view}#${fragment}` };
+  return `${base}?view=${view}#${fragment}`;
 }
 
 function load(view: View, win: BrowserWindow) {
   const target = targetFor(view);
-  if ('url' in target) {
-    const origin = ctx.origin();
-    // Already on the editor origin: the page's own reconnect loop brings it back, keeping its state.
-    if (origin && !failedLoad.has(win) && win.webContents.getURL().startsWith(`${origin}/`) && !win.webContents.isCrashed()) return;
-    void win.loadURL(target.url).catch(() => { /* did-fail-load retries */ });
-  } else {
-    if (win.webContents.getURL().startsWith('file:') && !win.webContents.isCrashed() && !failedLoad.has(win)) return;
-    void win.loadFile(target.file, { query: target.query }).catch(() => {});
-  }
+  const origin = ctx.origin();
+  const current = win.webContents.getURL();
+  // Healthy editor pages reconnect themselves; a recovery page needs no duplicate load.
+  if (!failedLoad.has(win) && !win.webContents.isCrashed() &&
+    ((origin && current.startsWith(`${origin}/`)) || current === target)) return;
+  void win.loadURL(target).catch(() => { /* did-fail-load retries */ });
 }
 
 /** Called when the service phase changes: move windows between the editor and the status page. */
@@ -199,15 +191,15 @@ export function reloadForPhase(ready: boolean): void {
     // load() keeps a healthy page on the current origin; anything else (status page, error page, an
     // origin left behind by a port move) gets the editor URL with the current credential.
     if (ready) load(view, win);
-    if (!ready && !current.startsWith('file:') && !current.startsWith('http')) load(view, win);
+    if (!ready && !isStatusUrl(current) && !current.startsWith('http')) load(view, win);
   }
 }
 
 /** Fatal and error states replace the editor with the status page (the editor cannot work). */
 export function showStatusPage(): void {
   for (const [view, win] of windows) {
-    if (win.isDestroyed() || win.webContents.getURL().startsWith('file:')) continue;
-    void win.loadFile(statusPage(), { query: { view } }).catch(() => {});
+    if (win.isDestroyed() || isStatusUrl(win.webContents.getURL())) continue;
+    void win.loadURL(statusUrl(view)).catch(() => {});
   }
 }
 

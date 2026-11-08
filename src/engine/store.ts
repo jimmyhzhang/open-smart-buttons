@@ -1,8 +1,8 @@
-// Config persistence (~/.streamdeckplus/config.json + images/). Writes are debounced and atomic.
+// Config persistence (~/.open-smart-buttons/config.json + images/). Writes are debounced and atomic.
 
 import { mkdirSync, readFileSync, writeFileSync, renameSync, existsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { homedir } from 'node:os';
+import { appDataDir } from './app-compat.ts';
 import { randomUUID, createHash } from 'node:crypto';
 import type { Config, Page, Profile, Settings } from '../shared/types.ts';
 import { keyCount, modelById } from '../protocol/models.ts';
@@ -63,7 +63,7 @@ export function starterProfile(modelId = 'plus', localOnly = false): Profile {
     folder.keys[4] = mk('system.open', { path: 'Calculator' }, 'Calc', 'calculator', '#27272a');
     p2.keys[0] = mk('sd.page.prev', {}, 'Back', 'chevron-left', '#1e293b');
     p2.keys[1] = mk('system.hotkey', { hotkey: { key: '4', cmd: true, shift: true } }, 'Screenshot', 'camera', '#1e1b4b');
-    p2.keys[2] = mk('system.text', { text: 'Hello from StreamDeckPlus!' }, 'Snippet', 'type', '#451a03');
+    p2.keys[2] = mk('system.text', { text: 'Hello from Open Smart Buttons!' }, 'Snippet', 'type', '#451a03');
     p2.keys[3] = mk('util.toggle', {}, 'Off', 'toggle-left', '#134e4a');
     if (p2.dials.length >= 2) {
       p2.dials[0] = mk('system.scroll', {}, 'Scroll');
@@ -141,7 +141,7 @@ export class Store {
     if (this.saveTimer) clearTimeout(this.saveTimer);
     this.saveTimer = setTimeout(() => {
       try { this.flush(); }
-      catch (error) { console.error('Could not save StreamDeckPlus settings:', (error as Error).message); }
+      catch (error) { console.error('Could not save Open Smart Buttons settings:', (error as Error).message); }
     }, 300);
     this.saveTimer.unref?.();
   }
@@ -194,7 +194,7 @@ export class Store {
 }
 
 export function defaultDataDir() {
-  return process.env.STREAMDECKPLUS_DATA || join(homedir(), '.streamdeckplus');
+  return appDataDir();
 }
 
 /** Rev-1 configs stored the action's default icon on every instance, which made it look like a user choice.

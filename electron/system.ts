@@ -5,10 +5,12 @@ import { app, powerMonitor } from 'electron';
 import { execFile } from 'node:child_process';
 import type { ElgatoStatus } from './protocol.ts';
 import { log } from './log.ts';
+import { LEGACY_APP_ID, LEGACY_APP_NAME } from '../src/engine/app-compat.ts';
 
 /** Apps that open Stream Deck hardware exclusively. */
 // lsappinfo accepts a bundle ID or an app name.
 const CONFLICTING = [
+  { bundle: LEGACY_APP_ID, name: LEGACY_APP_NAME },
   { bundle: 'com.elgato.StreamDeck', name: 'Elgato Stream Deck' },
   { bundle: 'OpenDeck', name: 'OpenDeck' },
 ];

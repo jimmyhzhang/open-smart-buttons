@@ -87,7 +87,7 @@ export async function appIconPng(appPath: string, run: CommandRunner = exec): Pr
     if (!found) return null;
     icon = found;
   }
-  const dir = join(tmpdir(), 'streamdeckplus-icons');
+  const dir = join(tmpdir(), 'open-smart-buttons-icons');
   mkdirSync(dir, { recursive: true });
   const out = join(dir, `${basename(appPath, '.app').replace(/[^\w.-]+/g, '_')}-${Date.now()}.png`);
   const s = await run('/usr/bin/sips', ['-s', 'format', 'png', '-Z', '128', join(resources, icon), '--out', out], 20_000);

@@ -14,7 +14,7 @@ import type { ActionInstance } from '../src/shared/types.ts';
 const settle = () => new Promise<void>((resolve) => setImmediate(resolve));
 
 async function boot(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-engine-performance-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-engine-performance-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -236,7 +236,7 @@ test('retained workflows and ordinary async action results continue across page 
 });
 
 test('detaching during async initialization cannot start a disposed session timer', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-early-detach-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-early-detach-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();

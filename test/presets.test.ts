@@ -53,7 +53,7 @@ test('Mac Control validates its operation and Keep Awake toggles through the pla
   const meta = CATALOG.find((m) => m.type === 'system.mac')!;
   assert.deepEqual(validateActionSetup(meta, { op: 'darkmode' }, 'key'), []);
   assert.ok(validateActionSetup(meta, { op: 'rm -rf' }, 'key').length);
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-presets-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-presets-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -129,7 +129,7 @@ test('starter layouts only use one-step presets and fill empty slots on a Neo', 
     }
     assert.ok(layout.keys.length >= 8, `${layout.id} fills a Neo`);
   }
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-starter-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-starter-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -154,7 +154,7 @@ test('starter layouts only use one-step presets and fill empty slots on a Neo', 
 });
 
 test('Neo touch points follow the profile setting and the info bar can switch modes', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-neo-tp-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-neo-tp-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -200,7 +200,7 @@ test('review fixes: one-click guards, dial hotkeys, generic actions, starter com
   assert.equal(one('util.toggle', 'key'), false);
   assert.equal(one('sd.folder', 'key'), true);
 
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-review-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-review-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -237,7 +237,7 @@ test('Keep Awake state is shared across buttons and platform instances', async (
 });
 
 test('pressing a button with an empty required setting explains instead of failing silently', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-unset-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-unset-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
@@ -264,12 +264,12 @@ test('pressing a button with an empty required setting explains instead of faili
 });
 
 test('an unset key reports once per press; strict mode is opt-in and reports once', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-once-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-once-'));
   const store = new Store(dir);
   store.config.settings.executeActions = false;
   const manager = new DeviceManager();
   const strict = new Engine(store, manager, true);
-  assert.equal(new Engine(new Store(mkdtempSync(join(tmpdir(), 'sdp-default-'))), new DeviceManager()).localOnly, false, 'every action runs by default');
+  assert.equal(new Engine(new Store(mkdtempSync(join(tmpdir(), 'osb-default-'))), new DeviceManager()).localOnly, false, 'every action runs by default');
   const platform = new Recording();
   Object.defineProperty(platform, 'canExecute', { value: true });
   const urls: string[] = [];

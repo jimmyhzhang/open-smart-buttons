@@ -31,7 +31,7 @@ class RecordingPlatform extends DryRunPlatform {
 }
 
 async function bootNeo(t: { after(fn: () => Promise<void>): void }) {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-routing-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-routing-'));
   const store = new Store(dir);
   // Never execute an OS operation, even if the test setup changes.
   store.config.settings.executeActions = false;
@@ -133,7 +133,7 @@ test('a blocked Neo operation emits permission/error feedback and later keys sti
 });
 
 test('strict simulator actions and state stay separate from a live USB session', async (t) => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-isolated-platform-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-isolated-platform-'));
   const store = new Store(dir, true);
   store.config.settings.executeActions = true;
   const manager = new DeviceManager();

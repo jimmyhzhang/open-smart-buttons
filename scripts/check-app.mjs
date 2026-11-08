@@ -1,5 +1,5 @@
-// Verifies a packaged StreamDeckPlus.app before it ships.
-//   node scripts/check-app.mjs <path/to/StreamDeckPlus.app> [--release]
+// Verifies a packaged Open Smart Buttons.app before it ships.
+//   node scripts/check-app.mjs <path/to/Open Smart Buttons.app> [--release]
 // Checks: code signature, security fuses, native module architecture, archive contents, and a launch
 // self-test (USB support loads, a key renders, the editor serves). --release adds Gatekeeper and stapling.
 import { execFileSync, spawnSync } from 'node:child_process';
@@ -8,16 +8,21 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { getCurrentFuseWire, FuseV1Options, FuseState } from '@electron/fuses';
 import { listPackage, extractFile } from '@electron/asar';
+import { APP_NAME, APP_ID } from '../src/shared/brand.ts';
 
 const [appPath] = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const release = process.argv.includes('--release');
-if (!appPath || !existsSync(appPath)) throw new Error('Usage: node scripts/check-app.mjs <StreamDeckPlus.app> [--release]');
+if (!appPath || !existsSync(appPath)) throw new Error('Usage: node scripts/check-app.mjs <Open Smart Buttons.app> [--release]');
 const failures = [];
 const check = (name, ok, detail = '') => {
   console.log(`${ok ? 'ok  ' : 'FAIL'} ${name}${detail ? ` — ${detail}` : ''}`);
   if (!ok) failures.push(name);
 };
 const sh = (cmd, args) => spawnSync(cmd, args, { encoding: 'utf8' });
+const plist = join(appPath, 'Contents', 'Info.plist');
+const plistValue = key => sh('/usr/bin/plutil', ['-extract', key, 'raw', '-o', '-', plist]).stdout.trim();
+check('bundle identifier', plistValue('CFBundleIdentifier') === APP_ID);
+check('bundle display name', plistValue('CFBundleDisplayName') === APP_NAME);
 
 // 1. Signature
 const verify = sh('/usr/bin/codesign', ['--verify', '--deep', '--strict', appPath]);
@@ -36,7 +41,7 @@ if (release) {
 }
 
 // 2. Fuses
-const exe = join(appPath, 'Contents', 'MacOS', 'StreamDeckPlus');
+const exe = join(appPath, 'Contents', 'MacOS', plistValue('CFBundleExecutable'));
 const wire = await getCurrentFuseWire(exe);
 const want = {
   [FuseV1Options.RunAsNode]: FuseState.DISABLE,
@@ -45,6 +50,7 @@ const want = {
   [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: FuseState.ENABLE,
   [FuseV1Options.OnlyLoadAppFromAsar]: FuseState.ENABLE,
   [FuseV1Options.EnableCookieEncryption]: FuseState.ENABLE,
+  [FuseV1Options.GrantFileProtocolExtraPrivileges]: FuseState.DISABLE,
 };
 for (const [fuse, state] of Object.entries(want)) {
   check(`fuse ${FuseV1Options[fuse]}`, wire[fuse] === state);
@@ -83,14 +89,18 @@ if (release) check('update channel configured', existsSync(updateYml));
 if (existsSync(updateYml)) console.log(`     update channel: ${readFileSync(updateYml, 'utf8').replace(/\n/g, ' ')}`);
 
 // 5. Launch self-test
-const profile = mkdtempSync(join(tmpdir(), 'sdp-smoke-'));
-try {
-  const run = spawnSync(exe, ['--smoke', `--sdp-profile-dir=${profile}`], { encoding: 'utf8', timeout: 60_000, env: { HOME: process.env.HOME, PATH: '/usr/bin:/bin' } });
-  const line = /SMOKE (.*)/.exec(run.stdout ?? '')?.[1];
-  const result = line ? JSON.parse(line) : null;
-  check('launch self-test', !!result?.ok, line ?? `no result (exit ${run.status}) ${run.stderr?.slice(-400)}`);
-  check('self-test released the data lock', !existsSync(join(profile, 'data', 'server.lock')));
-} finally { rmSync(profile, { recursive: true, force: true }); }
+if (failures.length) {
+  console.log('skip launch self-test — bundle validation failed');
+} else {
+  const profile = mkdtempSync(join(tmpdir(), 'osb-smoke-'));
+  try {
+    const run = spawnSync(exe, ['--smoke', `--osb-profile-dir=${profile}`], { encoding: 'utf8', timeout: 60_000, env: { HOME: process.env.HOME, PATH: '/usr/bin:/bin' } });
+    const line = /SMOKE (.*)/.exec(run.stdout ?? '')?.[1];
+    const result = line ? JSON.parse(line) : null;
+    check('launch self-test', !!result?.ok, line ?? `no result (exit ${run.status}) ${run.stderr?.slice(-400)}`);
+    check('self-test released the data lock', !existsSync(join(profile, 'data', 'server.lock')));
+  } finally { rmSync(profile, { recursive: true, force: true }); }
+}
 
 const size = execFileSync('/usr/bin/du', ['-sh', appPath], { encoding: 'utf8' }).split('\t')[0];
 console.log(`     app size: ${size}`);

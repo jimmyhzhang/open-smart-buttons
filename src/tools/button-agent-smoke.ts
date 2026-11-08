@@ -1,6 +1,6 @@
 // Opt-in live inference check. Uses a disposable Neo simulator and never controls the Mac.
 //   node src/tools/button-agent-smoke.ts [auto|claude|codex|api]
-// API mode reads ANTHROPIC_API_KEY and STREAMDECK_CLAUDE_MODEL from the local environment.
+// API mode reads ANTHROPIC_API_KEY and OPEN_SMART_BUTTONS_CLAUDE_MODEL from the local environment.
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -12,14 +12,15 @@ import { DeviceManager } from '../device/manager.ts';
 import { configureInference } from '../engine/inference.ts';
 import { isAiPreference, resolveEngine, setAiPreference } from '../engine/ai-engines.ts';
 import { activeButtonJob, type ButtonJob } from '../shared/button-agent.ts';
+import { appSetting } from '../engine/app-compat.ts';
 
-const preference = process.argv[2] ?? process.env.STREAMDECK_AI ?? 'auto';
+const preference = process.argv[2] ?? appSetting('AI') ?? 'auto';
 if (!isAiPreference(preference)) throw new Error('Choose auto, claude, codex, or api.');
-configureInference({ apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.STREAMDECK_CLAUDE_MODEL });
+configureInference({ apiKey: process.env.ANTHROPIC_API_KEY, model: appSetting('CLAUDE_MODEL') });
 delete process.env.ANTHROPIC_API_KEY;
 setAiPreference(preference);
 const provider = await resolveEngine();
-const dir = mkdtempSync(join(tmpdir(), 'sdp-live-agent-'));
+const dir = mkdtempSync(join(tmpdir(), 'osb-live-agent-'));
 const store = new Store(dir);
 store.config.settings.executeActions = false;
 const manager = new DeviceManager();

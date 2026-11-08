@@ -11,7 +11,7 @@ import { DryRunPlatform, MacPlatform, PermissionError } from '../src/engine/plat
 const exec = promisify(execFile);
 
 function fixture(t: { after(fn: () => void): void }) {
-  const root = mkdtempSync(join(tmpdir(), 'sdp-agent-launcher-'));
+  const root = mkdtempSync(join(tmpdir(), 'osb-agent-launcher-'));
   const bin = join(root, 'bin');
   const cwd = join(root, "project 'quoted' $literal; spaces");
   mkdirSync(bin);

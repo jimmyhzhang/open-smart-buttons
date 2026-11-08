@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 export class SecretStore {
   private readonly file: string;
+  private unreadable = false;
 
   constructor(dir: string) {
     this.file = join(dir, 'anthropic-key.bin');
@@ -18,23 +19,29 @@ export class SecretStore {
   }
 
   get(): string | null {
-    if (!existsSync(this.file)) return null;
+    if (!existsSync(this.file)) { this.unreadable = false; return null; }
     try {
-      return safeStorage.decryptString(readFileSync(this.file)) || null;
+      const key = safeStorage.decryptString(readFileSync(this.file)) || null;
+      this.unreadable = !key;
+      return key;
     } catch {
+      this.unreadable = true;
       return null;
     }
   }
 
   has(): boolean {
-    return existsSync(this.file);
+    return existsSync(this.file) && !this.unreadable;
   }
+
+  needsReentry(): boolean { return this.unreadable; }
 
   /** Stores a key, or clears it with null/empty. Refuses to write plaintext. */
   set(key: string | null): void {
     const value = key?.trim();
     if (!value) {
       try { unlinkSync(this.file); } catch { /* none stored */ }
+      this.unreadable = false;
       return;
     }
     if (!/^[\x21-\x7e]{8,512}$/.test(value)) throw new Error('That does not look like an API key.');
@@ -42,5 +49,6 @@ export class SecretStore {
     const temp = `${this.file}.${process.pid}.tmp`;
     writeFileSync(temp, safeStorage.encryptString(value), { mode: 0o600 });
     renameSync(temp, this.file);
+    this.unreadable = false;
   }
 }

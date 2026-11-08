@@ -1,4 +1,4 @@
-// Packages StreamDeckPlus for Mac with electron-builder.
+// Packages Open Smart Buttons for Mac with electron-builder.
 //   node scripts/build-electron.mjs            unpacked .app for this Mac's architecture (dist-app/mac*/)
 //   node scripts/build-electron.mjs --dmg      also the DMG and update zip
 //   node scripts/build-electron.mjs --dist     release: requires Developer ID signing and notarization
@@ -7,8 +7,8 @@
 // Signing: CSC_LINK/CSC_KEY_PASSWORD or CSC_NAME select the identity (electron-builder's variables).
 // Without them a local build uses the first valid Developer ID Application identity in the keychain,
 // else an Apple Development identity, else an ad-hoc signature. Notarization runs when APPLE_API_KEY,
-// APPLE_API_KEY_ID and APPLE_API_ISSUER are set and the app is signed with a Developer ID identity. An update channel is built in when SDP_GITHUB_OWNER and
-// SDP_GITHUB_REPO name the GitHub repository whose Releases host updates.
+// APPLE_API_KEY_ID and APPLE_API_ISSUER are set and the app is signed with a Developer ID identity. An update channel is built in when OSB_GITHUB_OWNER and
+// OSB_GITHUB_REPO name the GitHub repository whose Releases host updates.
 import { execFileSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -48,7 +48,7 @@ if (!env.CSC_LINK && !env.CSC_NAME) {
     // revoked certificate with the same name is still in the keychain.
     config.mac.identity = null;
     config.afterSign = join(root, 'scripts', 'sign-app.mjs');
-    process.env.SDP_SIGN_IDENTITY = pick.hash;
+    process.env.OSB_SIGN_IDENTITY = pick.hash;
     console.log(`Signing with ${pick.name}${pick.name.startsWith('Apple Development') ? ' (fine on this Mac, not for distribution)' : ''}.`);
   } else {
     config.mac.identity = '-';
@@ -59,10 +59,10 @@ if (!env.CSC_LINK && !env.CSC_NAME) {
 }
 if (dist && !notarize) throw new Error('A release build is notarized: set APPLE_API_KEY, APPLE_API_KEY_ID and APPLE_API_ISSUER.');
 config.mac.notarize = notarize;
-if (env.SDP_GITHUB_OWNER && env.SDP_GITHUB_REPO) {
-  config.publish = { provider: 'github', owner: env.SDP_GITHUB_OWNER, repo: env.SDP_GITHUB_REPO, releaseType: 'draft' };
+if (env.OSB_GITHUB_OWNER && env.OSB_GITHUB_REPO) {
+  config.publish = { provider: 'github', owner: env.OSB_GITHUB_OWNER, repo: env.OSB_GITHUB_REPO, releaseType: 'draft' };
 } else if (dist) {
-  throw new Error('A release build needs an update channel: set SDP_GITHUB_OWNER and SDP_GITHUB_REPO.');
+  throw new Error('A release build needs an update channel: set OSB_GITHUB_OWNER and OSB_GITHUB_REPO.');
 }
 if (!flag('dmg') && !dist) config.mac.target = [{ target: 'dir' }];
 // Ship only this architecture's USB prebuild (canvas installs per architecture already).

@@ -24,7 +24,7 @@ type TabId = (typeof TABS)[number]['id'];
 
 /** Mirrors DEFAULT_MODEL in electron/prefs.ts. */
 const DEFAULT_MODEL = 'claude-sonnet-5-5';
-const TAB_KEY = 'sdp.settings.tab';
+const TAB_KEY = 'osb.settings.tab';
 
 function isTab(v: unknown): v is TabId {
   return TABS.some((t) => t.id === v);
@@ -317,12 +317,12 @@ function General({ state, ns }: { state: AppState | null; ns: NativeState | null
   return (
     <Pane title="General">
       <Group>
-        <Row label="Open at login" help="StreamDeckPlus starts quietly in the menu bar when you log in.">
+        <Row label="Open at login" help="Open Smart Buttons starts quietly in the menu bar when you log in.">
           {(a11y) => <PrefSwitch pref="openAtLogin" value={ns?.prefs.openAtLogin} a11y={a11y} />}
         </Row>
         <Row
           label="Show in menu bar"
-          help={ns && !ns.prefs.showInMenuBar ? 'StreamDeckPlus stays in the Dock so you can always reach it.' : 'Switch profiles and brightness from the menu bar.'}
+          help={ns && !ns.prefs.showInMenuBar ? 'Open Smart Buttons stays in the Dock so you can always reach it.' : 'Switch profiles and brightness from the menu bar.'}
         >
           {(a11y) => <PrefSwitch pref="showInMenuBar" value={ns?.prefs.showInMenuBar} a11y={a11y} />}
         </Row>
@@ -412,7 +412,7 @@ function Devices({ state, ns }: { state: AppState | null; ns: NativeState | null
           <Icon name="triangle-alert" size={18} />
           <div>
             <strong>Device support didn't load.</strong>
-            <p>Reinstall StreamDeckPlus, then open it again.</p>
+            <p>Reinstall Open Smart Buttons, then open it again.</p>
           </div>
         </div>
       ) : null}
@@ -454,7 +454,7 @@ function ElgatoRow({ name, reopened }: { name?: string; reopened?: boolean }) {
       <Icon name="circle-alert" size={18} />
       <div>
         <strong>{reopened ? 'Stream Deck reopened.' : `${app} is using your deck.`}</strong>
-        <p>{reopened ? `Turn off Open at Login in ${app}, then try again.` : 'Quit it to let StreamDeckPlus connect.'}</p>
+        <p>{reopened ? `Turn off Open at Login in ${app}, then try again.` : 'Quit it to let Open Smart Buttons connect.'}</p>
       </div>
       <button
         className="sv-btn"
@@ -545,7 +545,7 @@ function Permissions({ state, onOpenGeneral }: { state: AppState | null; onOpenG
     setChecking(true);
     const r = await act<{ ok: boolean | null }[]>('platform.permissions', { prompt: true });
     setChecking(false);
-    if (r && r.length && r.every((p) => p.ok)) toast('StreamDeckPlus has the access it needs.');
+    if (r && r.length && r.every((p) => p.ok)) toast('Open Smart Buttons has the access it needs.');
   };
 
   const simulated = state.devices.length > 0 && state.devices.every(d => d.kind === 'sim');
@@ -568,7 +568,7 @@ function Permissions({ state, onOpenGeneral }: { state: AppState | null; onOpenG
     );
   }
 
-  // The first click asks macOS once (that is what lists StreamDeckPlus under Automation), then opens the pane.
+  // The first click asks macOS once (that is what lists Open Smart Buttons under Automation), then opens the pane.
   const openPane = async (id: string) => {
     if (!asked.current) { asked.current = true; await act('platform.permissions', { prompt: true }); }
     await command('permissions.open', id);
@@ -577,8 +577,8 @@ function Permissions({ state, onOpenGeneral }: { state: AppState | null; onOpenG
     <Pane
       title="Permissions"
       intro={allOk
-        ? 'StreamDeckPlus can press keys and control apps for you.'
-        : 'Let StreamDeckPlus press keys and control apps for you. Volume, Open and Website keys work without this.'}
+        ? 'Open Smart Buttons can press keys and control apps for you.'
+        : 'Let Open Smart Buttons press keys and control apps for you. Volume, Open and Website keys work without this.'}
     >
       <Group
         footer={
@@ -708,7 +708,7 @@ function AI({ ns, connected }: { ns: NativeState | null; connected: boolean }) {
   };
 
   return (
-    <Pane title="AI" intro="Describe a key in your own words and StreamDeckPlus sets it up. If you're signed in to Claude Code or Codex, there's nothing else to set up.">
+    <Pane title="AI" intro="Describe a key in your own words and Open Smart Buttons sets it up. If you're signed in to Claude Code or Codex, there's nothing else to set up.">
       <Group
         title="Design with"
         footer={<>Your request and the selected key go to {active?.vendor ?? 'the engine you choose'} only when you design a key. Claude Code and Codex run with no tools and use your own sign-in.</>}
@@ -811,6 +811,7 @@ function ApiKey({ ns, onChange }: { ns: NativeState | null; onChange(): void }) 
       ) : null}
 
       <Group title="Anthropic API key" footer="Optional. Used only when you choose it above, or when neither CLI is signed in. Stored in your Mac's Keychain and sent only to api.anthropic.com.">
+        {ns?.ai.keyNeedsReentry && <p className="sv-callout warn" role="status">Your saved API key could not be unlocked. Re-enter it for Open Smart Buttons. The encrypted file has been kept; your profiles and CLI sign-ins are unaffected.</p>}
         {editing ? (
           <Row label="API key" help={hasKey ? 'The new key replaces the one in your Keychain.' : 'Create one at console.anthropic.com.'} stack>
             {(a11y) => (
@@ -907,9 +908,9 @@ function Updates({ ns }: { ns: NativeState | null }) {
   switch (u.state) {
     case 'unavailable': icon = 'circle-minus'; title = 'Updates aren’t available for this copy.'; detail = u.reason; break;
     case 'checking': icon = 'loader-circle'; tone = 'spin'; title = 'Checking for updates…'; break;
-    case 'current': icon = 'circle-check'; tone = 'ok'; title = 'StreamDeckPlus is up to date.'; detail = `Version ${u.version} is the latest.`; break;
+    case 'current': icon = 'circle-check'; tone = 'ok'; title = 'Open Smart Buttons is up to date.'; detail = `Version ${u.version} is the latest.`; break;
     case 'downloading': icon = 'download'; title = `Downloading version ${u.version}…`; detail = <progress className="sv-progress" max={100} value={u.percent} aria-label="Download progress" />; break;
-    case 'ready': icon = 'circle-check'; tone = 'ok'; title = `Version ${u.version} is ready.`; detail = 'Restart StreamDeckPlus to finish updating. Your decks reconnect on their own.'; break;
+    case 'ready': icon = 'circle-check'; tone = 'ok'; title = `Version ${u.version} is ready.`; detail = 'Restart Open Smart Buttons to finish updating. Your decks reconnect on their own.'; break;
     case 'error': icon = 'circle-alert'; tone = 'bad'; title = 'The update check didn’t finish.'; detail = u.message; break;
   }
 
@@ -957,9 +958,10 @@ function About({ ns }: { ns: NativeState | null }) {
     <Pane title="About">
       <div className="sv-about">
         <span className="sv-app-icon" aria-hidden><span className="sv-deck-glyph"><i /><i /><i /><i /><i /><i /></span></span>
-        <h2 className="sv-app-name">StreamDeckPlus</h2>
+        <h2 className="sv-app-name">Open Smart Buttons</h2>
         <p className="sv-muted">Version {ns?.version ?? '—'}{ns?.packaged === false ? ' (development)' : ''}</p>
-        <p className="sv-about-desc">Set up and use your Stream Deck Neo and Stream Deck + without the Stream Deck app.</p>
+        <p className="sv-about-desc">Custom Mac controls, scripts and AI agents on your programmable buttons.</p>
+        <p className="sv-muted small">An independent open-source project. Not affiliated with or endorsed by Elgato or Corsair.</p>
       </div>
       <Group>
         <Row label="Data folder" help="Your profiles, buttons and images.">
@@ -971,7 +973,7 @@ function About({ ns }: { ns: NativeState | null }) {
         <Row label="Diagnostics" help="A short summary of your setup to include when you report a problem. It has no keys or personal files.">
           <button className="sv-btn" onClick={copy}><Icon name="clipboard-copy" size={14} /> Copy Diagnostics</button>
         </Row>
-        <Row label="Open-source licenses" help="Software StreamDeckPlus is built with.">
+        <Row label="Open-source licenses" help="Software Open Smart Buttons is built with.">
           <button className="sv-btn" onClick={() => void command('licenses.show')}><Icon name="scale" size={14} /> Licenses</button>
         </Row>
       </Group>

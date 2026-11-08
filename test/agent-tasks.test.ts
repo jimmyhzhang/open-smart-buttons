@@ -67,7 +67,7 @@ test('errors reach the result, output/history stay bounded, and active tasks can
 });
 
 test('CLI runner forwards skills and shell metacharacters as stdin, keeps project cwd, and reports permission failures', async t => {
-  const dir = mkdtempSync(join(tmpdir(), 'sdp-task-runner-'));
+  const dir = mkdtempSync(join(tmpdir(), 'osb-task-runner-'));
   const bin = join(dir, 'bin');
   mkdirSync(bin);
   resetUserPathForTests([bin]);

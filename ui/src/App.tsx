@@ -28,8 +28,8 @@ export function App() {
   const nativeState = useNativeState();
   const toasts = useToasts();
   // Start on a real (USB) device when one is connected; the user can still switch to a simulator.
-  const [deviceId, setDeviceId] = useState<string | null>(()=>localGet('sdp.device'));
-  const [mode, setMode] = useState<Mode>(() => (localGet('sdp.mode') as Mode) || 'edit');
+  const [deviceId, setDeviceId] = useState<string | null>(()=>localGet('osb.device'));
+  const [mode, setMode] = useState<Mode>(() => (localGet('osb.mode') as Mode) || 'edit');
   const [selected, setSelected] = useState<Slot | null>(null);
   const [browsing, setBrowsing] = useState(false);
   const [revealTarget,setRevealTarget]=useState<ButtonTarget | null>(null);
@@ -71,9 +71,9 @@ export function App() {
     });
   };
 
-  useEffect(() => { localSet('sdp.mode', mode); }, [mode]);
+  useEffect(() => { localSet('osb.mode', mode); }, [mode]);
   useEffect(() => {
-    if (device) localSet('sdp.device', device.id);
+    if (device) localSet('osb.device', device.id);
   }, [device?.id]);
   const dismissSlotToast = () => {
     if (slotToast.current === null) return;
@@ -250,7 +250,7 @@ export function App() {
   if (!state) {
     return (
       <div className="boot">
-        <p>{connected ? 'Loading…' : isNative ? 'Starting StreamDeckPlus…' : 'Open the editor using the link printed by StreamDeckPlus.'}</p>
+        <p>{connected ? 'Loading…' : isNative ? 'Starting Open Smart Buttons…' : 'Open the editor using the link printed by Open Smart Buttons.'}</p>
       </div>
     );
   }
@@ -379,7 +379,7 @@ export function App() {
       ) : null}
       {isNative && wasConnected && !connected ? (
         <div className="reconnect-overlay" role="status" aria-live="polite">
-          <div className="reconnect-card"><span className="sdp-spinner" aria-hidden /> Reconnecting…</div>
+          <div className="reconnect-card"><span className="osb-spinner" aria-hidden /> Reconnecting…</div>
         </div>
       ) : null}
       <div className="toasts" role="status" aria-live="polite">
@@ -402,7 +402,7 @@ function DeckAlert({ hidError, elgato }: { hidError: boolean; elgato?: { running
   return (
     <div className="deck-alert" role="status" aria-live="polite">
       <Icon name={hidError ? 'triangle-alert' : 'usb'} size={15}/>
-      <span>{hidError ? "Device support didn't load. Reinstall StreamDeckPlus to use your deck."
+      <span>{hidError ? "Device support didn't load. Reinstall Open Smart Buttons to use your deck."
         : elgato?.reopened ? 'Stream Deck reopened. Turn off its Open at Login, then try again.'
         : `${holder} is using your deck.`}</span>
       {!hidError && elgato?.running && !elgato.reopened ? (
@@ -432,7 +432,7 @@ function NoDevice({ hidError, elgato, onTrySimulator }: { hidError: boolean; elg
       <h1 id="no-device-title">{hidError ? "Device support didn't load" : 'Plug in your Stream Deck'}</h1>
       <div role="status" aria-live="polite">
         {hidError ? (
-          <p>Reinstall StreamDeckPlus to use your deck.</p>
+          <p>Reinstall Open Smart Buttons to use your deck.</p>
         ) : elgato?.running ? (
           <>
             <p>{elgato.reopened ? 'Stream Deck reopened. Turn off its Open at Login, then try again.' : `${holder} is using your deck.`}</p>
