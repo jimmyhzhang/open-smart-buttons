@@ -7,7 +7,7 @@ Create buttons in plain language, start with a ready-made group, or give a codin
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/screenshots/workspace-dark.png">
   <source media="(prefers-color-scheme: light)" srcset="docs/images/screenshots/workspace-light.png">
-  <img src="docs/images/screenshots/workspace-light.png" alt="Open Smart Buttons for Mac, showing a connected Neo with a colorful Daily page, AI creation, and preset button groups." width="1600" height="1230">
+  <img src="docs/images/screenshots/workspace-light.png" alt="Open Smart Buttons for Mac, showing a connected Neo with a colorful Daily page, AI creation, and preset button groups.">
 </picture>
 
 [See all screenshots and the capture plan](docs/SCREENSHOTS.md).

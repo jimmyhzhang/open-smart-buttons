@@ -13,7 +13,7 @@ Five views tell the project's story: see the Mac app, describe a button, start w
 | Manual setup | “Make the details yours.” Show a focused action dialog with its preview, icon, label, color and settings. | [Manual setup](images/screenshots/manual.png) | 1600 × 1040 |
 | Repository preview | A readable title and recognizable Daily page at a smaller sharing size. | [Social preview](images/screenshots/social-preview.png) | 1280 × 640 |
 
-The restrained mint, cream and lavender canvases share margins, typography and a teal accent. Captions sit outside the captured interface. The dark hero uses its own app capture and colors; the README selects it with a `<picture>` element when the reader prefers dark mode. Feature images use the light appearance for consistency and can be opened at full resolution.
+The restrained mint, cream and lavender canvases share margins, typography and a teal accent. Captions sit outside the captured interface. The dark hero uses its own app capture and colors; the README selects it with a `<picture>` element when the reader prefers dark mode. Leave fixed width and height attributes off the README image: mobile viewers must be able to use its intrinsic aspect ratio as they constrain its width. Feature images use the light appearance for consistency and can be opened at full resolution.
 
 ## Gallery
 
