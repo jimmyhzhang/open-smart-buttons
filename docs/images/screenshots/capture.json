@@ -1,0 +1,120 @@
+{
+  "capturedOn": "2026-11-08",
+  "application": "Open Smart Buttons",
+  "version": "0.1.0",
+  "surface": "Signed packaged Electron application on macOS",
+  "device": "USB-connected Stream Deck Neo",
+  "demoProfile": "Studio",
+  "windowContentSize": {
+    "width": 1280,
+    "height": 820
+  },
+  "presentation": "Actual window or component captures inside an external HTML/CSS frame. No product pixels or results replaced.",
+  "verifiedFlows": [
+    {
+      "flow": "AI creation",
+      "engine": "Codex",
+      "request": "Open the macOS Screenshot toolbar. Call it Capture, with a camera icon on a dark blue background.",
+      "result": "Saved built-in Screenshot tools action; not run."
+    },
+    {
+      "flow": "Preset group",
+      "group": "Developer",
+      "result": "Eight buttons created through the application UI."
+    },
+    {
+      "flow": "Agent prompt",
+      "engine": "Codex",
+      "skill": "review-project",
+      "initiatedWith": "Application Run control",
+      "result": "Tests: all 3 passed (`npm test`).\nCoverage: command, command-plus-shift, and plain-key formatting.\nFiles changed: none."
+    },
+    {
+      "flow": "Manual setup",
+      "preset": "Volume down",
+      "label": "Quieter",
+      "result": "Unsaved editable setup dialog."
+    }
+  ],
+  "originalProfilesAndPreferencesRestored": true,
+  "originals": [
+    {
+      "file": "raw/agent-detail.png",
+      "width": 828,
+      "height": 970,
+      "sha256": "bf63ab64f76f9ee777d4abe4fd9fa1612bb495b6b26f18be8b1fad459bba09eb"
+    },
+    {
+      "file": "raw/agent-running-window.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "93e7d01ac65de0c7be91997794c68f9f61d8a1332b56fb0cfb32783e4a0cebfb"
+    },
+    {
+      "file": "raw/agent-window.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "418082d90cabb3006e2de4ad2d57bec8b0d0fca372e88c2bd6649ed5a0afe651"
+    },
+    {
+      "file": "raw/ai-create-detail.png",
+      "width": 828,
+      "height": 990,
+      "sha256": "4bfc1591a5bbf532eeb594c5487f33cd47ef9c1f88eca4be214e8cf2fd31706c"
+    },
+    {
+      "file": "raw/ai-create-window.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "896c61dbbb384c67229a3e97686881d44193cf9c960615ae02eb39a9394e289a"
+    },
+    {
+      "file": "raw/manual-detail.png",
+      "width": 1040,
+      "height": 992,
+      "sha256": "db8ebf889846f4e2f3e34aa7674a06dc29367fdc235464fed50d1bf39c48bf21"
+    },
+    {
+      "file": "raw/manual-window.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "017b6a5cb4b2c3a8b065cfc35320d39e08792f7248478ba9832a1cbd990ab3ea"
+    },
+    {
+      "file": "raw/presets-device.png",
+      "width": 1020,
+      "height": 672,
+      "sha256": "f9d6d5d088d91612370415fa5bec6294c9974a77d8b1106403f094a3ceee53e5"
+    },
+    {
+      "file": "raw/presets-picker.png",
+      "width": 714,
+      "height": 276,
+      "sha256": "32420fc824dc2ea75bd13dc1d0a3674a6ec923d42ec26a7245c0f42fd75cad44"
+    },
+    {
+      "file": "raw/presets-window.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "3fff77f71856867002b244fb3bbb5f3108df831ace0685bccef3deea3ac84b12"
+    },
+    {
+      "file": "raw/social-device.png",
+      "width": 511,
+      "height": 337,
+      "sha256": "694321201265867d64e877556c5c932c1de96beb4a23d54b8a83e365ab06bd2d"
+    },
+    {
+      "file": "raw/workspace-dark.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "e9bdd9577b434ea5899e99c8430057c4ff549a05add2598f0f9f8a60493cd9d1"
+    },
+    {
+      "file": "raw/workspace-light.png",
+      "width": 1392,
+      "height": 932,
+      "sha256": "c1c76e920d7971dd173a84e407d8e3508119e056de4e6810c2e9476837020f86"
+    }
+  ]
+}
